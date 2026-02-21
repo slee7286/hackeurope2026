@@ -164,6 +164,7 @@ export function ChatInterface({
 }: ChatInterfaceProps) {
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastAutoPlayedMessageKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -175,6 +176,27 @@ export function ChatInterface({
       onVoiceInputConsumed();
     }
   }, [voiceInput, onVoiceInputConsumed]);
+
+  useEffect(() => {
+    let latestAiIndex = -1;
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i].role === 'ai') {
+        latestAiIndex = i;
+        break;
+      }
+    }
+
+    if (latestAiIndex < 0) return;
+
+    const latestAiMessage = messages[latestAiIndex];
+    const messageKey = `${latestAiIndex}:${latestAiMessage.text}`;
+    if (!latestAiMessage.text.trim() || lastAutoPlayedMessageKeyRef.current === messageKey) {
+      return;
+    }
+
+    lastAutoPlayedMessageKeyRef.current = messageKey;
+    void tts.speak(latestAiMessage.text, selectedVoiceId);
+  }, [messages, selectedVoiceId, tts.speak]);
 
   const handleSend = () => {
     const trimmed = inputText.trim();

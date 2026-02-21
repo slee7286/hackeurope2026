@@ -711,6 +711,7 @@ input[type='text']:disabled {
   cursor: pointer;
   transition: border-color 0.15s, box-shadow 0.15s;
   box-shadow: none;
+  position: relative;
 }
 
 .game-picture-choice:hover:not(:disabled) {
@@ -725,6 +726,12 @@ input[type='text']:disabled {
   cursor: not-allowed;
 }
 
+.game-picture-choice--selected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(93, 129, 143, 0.22);
+  background: #f7fbfc;
+}
+
 .game-picture-img {
   width: 100%;
   aspect-ratio: 4 / 3;
@@ -732,6 +739,23 @@ input[type='text']:disabled {
   border-radius: 6px;
   display: block;
   background: var(--color-surface-alt);
+}
+
+.game-picture-option-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
 }
 
 .game-picture-label {

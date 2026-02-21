@@ -1,0 +1,97 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.generateSessionPlan = generateSessionPlan;
+const sdk_1 = __importDefault(require("@anthropic-ai/sdk"));
+const sessionStore_1 = require("../store/sessionStore");
+const systemPrompts_1 = require("./systemPrompts");
+const anthropic = new sdk_1.default({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+});
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+/**
+ * Extracts the first JSON object from a string, stripping any markdown
+ * code fences that the model may have added despite instructions.
+ */
+function extractJson(text) {
+    // Strip ```json ... ``` or ``` ... ``` fences
+    const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (fenced)
+        return fenced[1].trim();
+    // Fall back to the first { ... } block in the string
+    const start = text.indexOf("{");
+    if (start !== -1)
+        return text.slice(start);
+    return text.trim();
+}
+// ─── Main Generator ───────────────────────────────────────────────────────────
+/**
+ * Called after finalize_session tool is triggered.
+ * Makes a second Claude call (Haiku) to generate structured therapy blocks.
+ * Updates sessionStore directly when complete.
+ */
+async function generateSessionPlan(sessionId, args) {
+    const session = sessionStore_1.sessionStore.get(sessionId);
+    if (!session) {
+        throw new Error(`Session ${sessionId} not found during plan generation`);
+    }
+    const userPrompt = buildPlanPrompt(args);
+    const response = await anthropic.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 2048,
+        system: systemPrompts_1.PLAN_GENERATION_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+    });
+    const rawText = response.content.find((b) => b.type === "text")?.text ?? "";
+    // Strip markdown code fences that models sometimes add despite instructions
+    const jsonText = extractJson(rawText);
+    let parsed;
+    try {
+        parsed = JSON.parse(jsonText);
+    }
+    catch {
+        throw new Error(`Plan generator returned invalid JSON. Raw output: ${rawText.slice(0, 400)}`);
+    }
+    if (!Array.isArray(parsed.therapyBlocks) || parsed.therapyBlocks.length === 0) {
+        throw new Error("Plan generator returned empty therapyBlocks array");
+    }
+    const plan = {
+        patientProfile: {
+            mood: args.mood,
+            interests: args.interests,
+            difficulty: args.difficulty,
+            notes: args.notes,
+        },
+        sessionMetadata: {
+            sessionId,
+            createdAt: session.createdAt,
+            estimatedDurationMinutes: parsed.estimatedDurationMinutes ?? args.estimatedDurationMinutes,
+        },
+        therapyBlocks: parsed.therapyBlocks.map((block, index) => ({
+            ...block,
+            // Guarantee blockId is always present even if Claude omits it
+            blockId: block.blockId ?? `block-${index + 1}`,
+        })),
+    };
+    session.plan = plan;
+    session.status = "complete";
+    sessionStore_1.sessionStore.set(sessionId, session);
+}
+// ─── Prompt Builder ───────────────────────────────────────────────────────────
+function buildPlanPrompt(args) {
+    return `
+Patient profile:
+- Mood today: ${args.mood}
+- Interests: ${args.interests.join(", ")}
+- Chosen difficulty: ${args.difficulty}
+- Clinical notes: ${args.notes}
+- Target session duration: ${args.estimatedDurationMinutes} minutes
+
+Generate a therapy session plan for this patient.
+Use their interests as topics.
+Match the difficulty level throughout.
+Return valid JSON only.
+`.trim();
+}

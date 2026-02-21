@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { TherapySessionPlan, PictureChoice } from '../api/sessionClient';
 import { fetchPictureChoices } from '../api/sessionClient';
 import type { UseTextToSpeechResult } from '../hooks/useTextToSpeech';
@@ -20,50 +20,56 @@ interface GameTabProps {
   selectedVoiceId: string;
 }
 
+function makePlaceholderImage(label: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800"><rect width="100%" height="100%" fill="#eef3f5"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="72" fill="#20323a">${label}</text></svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+function buildPlaceholderChoices(): PictureChoice[] {
+  const labels: Array<'A' | 'B' | 'C' | 'D'> = ['A', 'B', 'C', 'D'];
+  return labels.map((label, idx) => ({
+    id: label,
+    imageUrl: makePlaceholderImage(`Option ${label}`),
+    isCorrect: idx === 0,
+  }));
+}
+
 export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabProps) {
   const engine = useTherapyEngine();
   const [answer, setAnswer] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [showPromptText, setShowPromptText] = useState(false);
 
-  // Picture description state
   const [imageChoices, setImageChoices] = useState<PictureChoice[]>([]);
   const [imagesLoading, setImagesLoading] = useState(false);
-  const [imagesError, setImagesError] = useState<string | null>(null);
+  const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(null);
+  const [lastPictureFeedback, setLastPictureFeedback] = useState<{
+    selectedId: string;
+    correctId: string;
+    isCorrect: boolean;
+  } | null>(null);
 
-  // Track the last item auto-played so TTS fires exactly once per new prompt.
-  // We use a ref rather than state to avoid triggering re-renders.
   const lastAutoPlayedRef = useRef<string | null>(null);
-
-  // Keep a ref to tts.speak so the auto-play effect doesn't need it as a dep
-  // (the speak function is stable, but the tts object reference changes on re-render).
   const speakRef = useRef(tts.speak);
   speakRef.current = tts.speak;
 
-  // ── Plan loading ─────────────────────────────────────────────────────────────
-
   useEffect(() => {
     if (plan) engine.loadPlan(plan);
-    // engine.loadPlan is stable (empty useCallback deps)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plan]);
 
-  // ── Per-item reset ───────────────────────────────────────────────────────────
-
-  // Clear the answer input, prompt visibility, and image state whenever a new item is shown.
   useEffect(() => {
     if (engine.status === 'presenting') {
       setAnswer('');
       setSubmitted(false);
       setShowPromptText(false);
       setImageChoices([]);
+      setImagesLoading(false);
+      setSelectedChoiceId(null);
+      setLastPictureFeedback(null);
     }
   }, [engine.status, engine.blockIndex, engine.itemIndex]);
 
-  // ── Auto-play TTS ────────────────────────────────────────────────────────────
-
-  // Speak the prompt once when a new item arrives.
-  // Guard with a ref key to prevent double-firing on re-renders.
   useEffect(() => {
     if (engine.status !== 'presenting' || !engine.plan) return;
     const key = `${engine.blockIndex}-${engine.itemIndex}`;
@@ -75,8 +81,6 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
     speakRef.current(item.prompt, selectedVoiceId);
   }, [engine.status, engine.blockIndex, engine.itemIndex, engine.plan, selectedVoiceId]);
 
-  // ── STT transcript → answer input ────────────────────────────────────────────
-
   useEffect(() => {
     if (stt.transcript) {
       setAnswer(stt.transcript);
@@ -84,41 +88,32 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
     }
   }, [stt.transcript, stt.clearTranscript]);
 
-  // ── Picture choices fetch ─────────────────────────────────────────────────────
-
   useEffect(() => {
     if (engine.status !== 'presenting' || !engine.plan) return;
     const block = engine.plan.therapyBlocks[engine.blockIndex];
     const item = block?.items[engine.itemIndex];
     if (!block || !item || block.type !== 'picture_description') return;
-    if (!item.distractors?.length) return;
 
     let cancelled = false;
     setImagesLoading(true);
-    setImagesError(null);
+    setImageChoices([]);
 
-    fetchPictureChoices(item.answer, item.distractors)
+    fetchPictureChoices(item.answer, block.topic)
       .then((choices) => {
-        if (!cancelled) {
-          setImageChoices(choices);
-          setImagesLoading(false);
-        }
+        if (cancelled) return;
+        setImageChoices(choices.length > 0 ? choices : buildPlaceholderChoices());
+        setImagesLoading(false);
       })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setImagesError(
-            (err instanceof Error ? err.message : null) ?? 'Failed to load images.'
-          );
-          setImagesLoading(false);
-        }
+      .catch(() => {
+        if (cancelled) return;
+        setImageChoices(buildPlaceholderChoices());
+        setImagesLoading(false);
       });
 
     return () => {
       cancelled = true;
     };
   }, [engine.status, engine.blockIndex, engine.itemIndex, engine.plan]);
-
-  // ── Handlers ─────────────────────────────────────────────────────────────────
 
   const handlePlayPrompt = useCallback(() => {
     if (!engine.plan) return;
@@ -144,18 +139,39 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
     [handleSubmit]
   );
 
-  const handlePictureClick = useCallback(
-    (choice: PictureChoice) => {
-      if (submitted) return;
-      setSubmitted(true);
-      tts.stop();
-      // choice.query matches item.answer for correct, distractor label for wrong
-      engine.submitAnswer(choice.query);
-    },
-    [submitted, engine, tts]
-  );
+  const handlePictureSelect = useCallback((choiceId: string) => {
+    if (submitted) return;
+    setSelectedChoiceId(choiceId);
+  }, [submitted]);
 
-  // ── Idle ─────────────────────────────────────────────────────────────────────
+  const handlePictureSubmit = useCallback(() => {
+    if (!engine.plan || !selectedChoiceId || submitted) return;
+    const block = engine.plan.therapyBlocks[engine.blockIndex];
+    const item = block?.items[engine.itemIndex];
+    if (!item) return;
+
+    const selected = imageChoices.find((choice) => choice.id === selectedChoiceId);
+    const correct = imageChoices.find((choice) => choice.isCorrect);
+    if (!selected || !correct) return;
+
+    setSubmitted(true);
+    tts.stop();
+
+    const planExpectsLabel = /^[A-D]$/i.test(item.answer.trim());
+    const submittedAnswer = planExpectsLabel
+      ? selected.id
+      : selected.isCorrect
+        ? item.answer
+        : selected.id;
+
+    setLastPictureFeedback({
+      selectedId: selected.id,
+      correctId: correct.id,
+      isCorrect: selected.isCorrect,
+    });
+
+    engine.submitAnswer(submittedAnswer);
+  }, [engine, imageChoices, selectedChoiceId, submitted, tts]);
 
   if (engine.status === 'idle') {
     return (
@@ -172,8 +188,6 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
     );
   }
 
-  // ── Error ────────────────────────────────────────────────────────────────────
-
   if (engine.status === 'error') {
     return (
       <div className="surface-panel fade-in game-empty">
@@ -187,8 +201,6 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
     );
   }
 
-  // ── Loaded ───────────────────────────────────────────────────────────────────
-
   if (engine.status === 'loaded' && engine.plan) {
     const p = engine.plan;
     const totalItems = p.therapyBlocks.reduce((sum, b) => sum + b.items.length, 0);
@@ -197,11 +209,11 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
         <h2 className="panel-title">Session plan ready</h2>
         <div className="game-plan-meta">
           <span>{p.therapyBlocks.length} exercises</span>
-          <span aria-hidden="true">·</span>
+          <span aria-hidden="true">.</span>
           <span>{totalItems} prompts</span>
-          <span aria-hidden="true">·</span>
+          <span aria-hidden="true">.</span>
           <span>Difficulty: {p.patientProfile.difficulty}</span>
-          <span aria-hidden="true">·</span>
+          <span aria-hidden="true">.</span>
           <span>~{p.sessionMetadata.estimatedDurationMinutes} min</span>
         </div>
         <div className="game-block-list">
@@ -225,8 +237,6 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
     );
   }
 
-  // ── Presenting ───────────────────────────────────────────────────────────────
-
   if (engine.status === 'presenting' && engine.plan) {
     const block = engine.plan.therapyBlocks[engine.blockIndex];
     const item = block?.items[engine.itemIndex];
@@ -243,8 +253,6 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
 
     return (
       <div className="surface-panel fade-in game-present">
-
-        {/* Progress header */}
         <div className="game-progress-row">
           <span className="game-block-badge">
             {BLOCK_TYPE_LABELS[block.type] ?? block.type}
@@ -256,7 +264,6 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
 
         <div className="game-topic-row">{block.topic}</div>
 
-        {/* Prompt audio section */}
         <div className="game-audio-section">
           <div className="game-section-label">Prompt</div>
           <div className="game-audio-controls">
@@ -289,7 +296,6 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
           )}
         </div>
 
-        {/* Answer section — picture grid for picture_description, STT+text otherwise */}
         {isPictureBlock ? (
           <div className="game-answer-section">
             <div className="game-section-label">Select the correct picture</div>
@@ -298,82 +304,49 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
               <div className="game-notice">Loading images, please wait...</div>
             )}
 
-            {imagesError && (
-              <>
-                <div className="game-notice game-notice--error" role="alert">
-                  Could not load images. Please type your answer.
-                </div>
-                <div className="game-input-row">
-                  <input
-                    type="text"
-                    value={answer}
-                    onChange={(e) => setAnswer(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Type your answer"
-                    disabled={submitted}
-                    className="game-answer-input"
-                    aria-label="Answer input"
-                  />
-                  <button
-                    className="btn-primary"
-                    onClick={handleSubmit}
-                    disabled={!answer.trim() || submitted}
-                  >
-                    Submit
-                  </button>
-                </div>
-              </>
-            )}
-
-            {!imagesLoading && !imagesError && imageChoices.length === 0 && (
-              // No distractors in plan or fetch returned empty — fall back to text
-              <div className="game-input-row">
-                <input
-                  type="text"
-                  value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Type your answer"
-                  disabled={submitted}
-                  className="game-answer-input"
-                  aria-label="Answer input"
-                />
-                <button
-                  className="btn-primary"
-                  onClick={handleSubmit}
-                  disabled={!answer.trim() || submitted}
-                >
-                  Submit
-                </button>
-              </div>
+            {!imagesLoading && imageChoices.length === 0 && (
+              <div className="game-notice">Preparing image options...</div>
             )}
 
             {imageChoices.length > 0 && (
-              <div className="game-picture-grid">
-                {imageChoices.map((choice) => (
+              <>
+                <div className="game-picture-grid">
+                  {imageChoices.map((choice) => (
+                    <button
+                      key={choice.id}
+                      className={[
+                        'game-picture-choice',
+                        selectedChoiceId === choice.id ? 'game-picture-choice--selected' : '',
+                      ].join(' ').trim()}
+                      onClick={() => handlePictureSelect(choice.id)}
+                      disabled={submitted}
+                      aria-label={`Select option ${choice.id}`}
+                    >
+                      <span className="game-picture-option-badge">{choice.id}</span>
+                      <img
+                        src={choice.imageUrl}
+                        alt={`Option ${choice.id}`}
+                        className="game-picture-img"
+                      />
+                    </button>
+                  ))}
+                </div>
+                <div className="game-input-row">
                   <button
-                    key={choice.query}
-                    className="game-picture-choice"
-                    onClick={() => handlePictureClick(choice)}
-                    disabled={submitted}
-                    aria-label={`Select picture: ${choice.query}`}
+                    className="btn-primary"
+                    onClick={handlePictureSubmit}
+                    disabled={!selectedChoiceId || submitted}
                   >
-                    <img
-                      src={choice.thumbnailUrl}
-                      alt={choice.query}
-                      className="game-picture-img"
-                    />
-                    <span className="game-picture-label">{choice.query}</span>
+                    Submit selection
                   </button>
-                ))}
-              </div>
+                </div>
+              </>
             )}
           </div>
         ) : (
           <div className="game-answer-section">
             <div className="game-section-label">Your answer</div>
 
-            {/* Voice input controls */}
             <div className="game-stt-controls">
               {!stt.isRecording ? (
                 <button
@@ -407,7 +380,6 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
               </div>
             )}
 
-            {/* Text input fallback + submit */}
             <div className="game-input-row">
               <input
                 type="text"
@@ -438,10 +410,14 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
     );
   }
 
-  // ── Feedback ─────────────────────────────────────────────────────────────────
-
   if (engine.status === 'showingFeedback' && engine.feedback) {
     const { isCorrect, expected, submitted: sub } = engine.feedback;
+    const pictureFeedbackText = lastPictureFeedback
+      ? lastPictureFeedback.isCorrect
+        ? `Correct. You chose ${lastPictureFeedback.selectedId}.`
+        : `Incorrect. You chose ${lastPictureFeedback.selectedId}; correct was ${lastPictureFeedback.correctId}.`
+      : null;
+
     return (
       <div className="surface-panel fade-in game-feedback-panel">
         <div
@@ -449,7 +425,7 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
           style={{ color: isCorrect ? 'var(--color-correct)' : 'var(--color-danger)' }}
           aria-label={isCorrect ? 'Correct' : 'Incorrect'}
         >
-          {isCorrect ? '✓' : '✗'}
+          {isCorrect ? 'OK' : 'X'}
         </div>
         <div
           className="game-feedback-label"
@@ -467,6 +443,11 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
             </span>
           </div>
         )}
+        {pictureFeedbackText && (
+          <div className="game-feedback-detail">
+            <span>{pictureFeedbackText}</span>
+          </div>
+        )}
         <button
           className="btn-primary"
           style={{ marginTop: 24, fontSize: 'var(--font-size-lg)' }}
@@ -477,8 +458,6 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
       </div>
     );
   }
-
-  // ── Ended ────────────────────────────────────────────────────────────────────
 
   if (engine.status === 'ended') {
     const { correct, total } = engine.score;

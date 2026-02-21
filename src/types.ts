@@ -21,7 +21,7 @@ export interface TherapyItem {
   answer: string;
   /**
    * Only present on picture_description items.
-   * 3 alternative noun labels used to fetch distractor images via Bing Image Search.
+   * Optional alternative labels that can help image retrieval.
    * Example: if answer is "cat", distractors might be ["dog", "bird", "fish"].
    */
   distractors?: string[];
