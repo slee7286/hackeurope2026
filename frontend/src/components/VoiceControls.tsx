@@ -22,6 +22,7 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
         background: 'var(--color-surface)',
         borderRadius: 'var(--radius)',
         boxShadow: 'var(--shadow)',
+        border: '1px solid var(--color-border)',
         padding: '16px 20px',
         display: 'flex',
         alignItems: 'center',
@@ -38,7 +39,7 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
           marginRight: '2px',
         }}
       >
-        Voice:
+        Voice input:
       </span>
 
       {/* Speak / Stop button */}
@@ -50,15 +51,12 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
           style={{
             background: disabled ? 'var(--color-border)' : 'var(--color-primary)',
             color: '#fff',
-            fontSize: 'var(--font-size-lg)',
-            padding: '0.55em 1.4em',
+            fontSize: 'var(--font-size-base)',
+            padding: '0.55em 1.1em',
             borderRadius: 'var(--radius-sm)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
           }}
         >
-          🎤 Speak
+          Speak
         </button>
       ) : (
         <button
@@ -67,15 +65,12 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
           style={{
             background: 'var(--color-danger)',
             color: '#fff',
-            fontSize: 'var(--font-size-lg)',
-            padding: '0.55em 1.4em',
+            fontSize: 'var(--font-size-base)',
+            padding: '0.55em 1.1em',
             borderRadius: 'var(--radius-sm)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
           }}
         >
-          ⏹ Stop
+          Stop
         </button>
       )}
 
@@ -100,23 +95,18 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
               animation: 'pulse 1s ease infinite',
             }}
           />
-          Listening…
+          Listening...
         </div>
       )}
 
       {/* Confirmation that transcript was received */}
       {stt.transcript && !stt.isRecording && (
-        <div style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>
-          ✓ Added to input — check and press Send
+        <div style={{ color: 'var(--color-primary)', fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>
+          Added to input. Review and press Send.
         </div>
       )}
 
-      {/* Error */}
-      {stt.error && (
-        <div style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)' }}>
-          ⚠ {stt.error}
-        </div>
-      )}
+      {stt.error && <div style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)' }}>{stt.error}</div>}
 
       {/* Attribution */}
       <div
@@ -127,7 +117,7 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
           whiteSpace: 'nowrap',
         }}
       >
-        Voice input: Google STT
+        Powered by Google STT
       </div>
     </div>
   );

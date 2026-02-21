@@ -5,13 +5,20 @@ interface ProgressOverviewProps {
   summary: PatientSummary;
 }
 
-function Stars({ count }: { count: number }) {
+function RatingDots({ count }: { count: number }) {
   return (
-    <span style={{ fontSize: '16px', letterSpacing: '1px' }}>
+    <span style={{ display: 'inline-flex', gap: '4px' }}>
       {Array.from({ length: 3 }, (_, i) => (
-        <span key={i} style={{ color: i < count ? 'var(--color-warning)' : 'var(--color-border)' }}>
-          ★
-        </span>
+        <span
+          key={i}
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            display: 'inline-block',
+            background: i < count ? 'var(--color-warning)' : 'var(--color-border)',
+          }}
+        />
       ))}
     </span>
   );
@@ -44,8 +51,7 @@ export function ProgressOverview({ summary }: ProgressOverviewProps) {
               width: 13,
               height: 13,
               borderRadius: '50%',
-              background:
-                i >= streakStart ? 'var(--color-accent)' : 'var(--color-primary)',
+              background: i >= streakStart ? 'var(--color-accent-rose)' : 'var(--color-primary)',
               opacity: i >= streakStart ? 1 : 0.35,
               transition: 'opacity 0.2s',
             }}
@@ -74,7 +80,7 @@ export function ProgressOverview({ summary }: ProgressOverviewProps) {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '2px',
+              gap: '4px',
               minWidth: '76px',
               border: '1.5px solid var(--color-border)',
             }}
@@ -88,7 +94,7 @@ export function ProgressOverview({ summary }: ProgressOverviewProps) {
             >
               {skill.name}
             </span>
-            <Stars count={skill.stars} />
+            <RatingDots count={skill.stars} />
           </div>
         ))}
       </div>

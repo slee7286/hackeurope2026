@@ -10,20 +10,17 @@ interface ChatInterfaceProps {
   plan: TherapySessionPlan | null;
   isLoading: boolean;
   onSend: (text: string) => void;
-  /** Voice transcript to pre-fill the input. Clear after reading. */
   voiceInput: string;
   onVoiceInputConsumed: () => void;
   tts: UseTextToSpeechResult;
   selectedVoiceId: string;
 }
 
-// ─── Status badge ─────────────────────────────────────────────────────────────
-
 function StatusBadge({ status }: { status: FullStatus }) {
-  const configs: Partial<Record<FullStatus, { label: string; color: string; bg: string; icon: string }>> = {
-    ongoing:    { label: 'Talking…', color: '#1d4ed8', bg: '#dbeafe', icon: '💬' },
-    finalizing: { label: 'Creating your session plan…', color: '#6d28d9', bg: '#ede9fe', icon: '⏳' },
-    completed:  { label: 'Your therapy plan is ready for today.', color: '#065f46', bg: '#d1fae5', icon: '✅' },
+  const configs: Partial<Record<FullStatus, { label: string; color: string; bg: string }>> = {
+    ongoing: { label: 'In session', color: '#245263', bg: '#e5f0f4' },
+    finalizing: { label: 'Generating your plan...', color: '#7d5a1f', bg: '#fff2d0' },
+    completed: { label: 'Session complete. Plan ready.', color: '#355842', bg: '#e8f4ed' },
   };
 
   const cfg = configs[status];
@@ -41,18 +38,14 @@ function StatusBadge({ status }: { status: FullStatus }) {
         fontWeight: 600,
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '6px',
         marginBottom: '6px',
         alignSelf: 'flex-start',
       }}
     >
-      <span>{cfg.icon}</span>
       {cfg.label}
     </div>
   );
 }
-
-// ─── Plan summary card ────────────────────────────────────────────────────────
 
 function PlanSummary({ plan }: { plan: TherapySessionPlan }) {
   const topics = [...new Set(plan.therapyBlocks.map((b) => b.topic))];
@@ -62,7 +55,7 @@ function PlanSummary({ plan }: { plan: TherapySessionPlan }) {
       className="fade-in"
       style={{
         background: 'var(--color-surface-alt)',
-        border: '2px solid var(--color-accent)',
+        border: '1.5px solid var(--color-accent-rose)',
         borderRadius: 'var(--radius)',
         padding: '16px 20px',
         margin: '6px 0',
@@ -73,10 +66,10 @@ function PlanSummary({ plan }: { plan: TherapySessionPlan }) {
           fontWeight: 700,
           fontSize: 'var(--font-size-lg)',
           marginBottom: '6px',
-          color: 'var(--color-accent)',
+          color: 'var(--color-primary)',
         }}
       >
-        📋 Today's session plan
+        Today's session plan
       </div>
       <div
         style={{
@@ -85,8 +78,7 @@ function PlanSummary({ plan }: { plan: TherapySessionPlan }) {
           marginBottom: '10px',
         }}
       >
-        {plan.sessionMetadata.estimatedDurationMinutes} min &middot;{' '}
-        {plan.therapyBlocks.length} exercises &middot; Difficulty:{' '}
+        {plan.sessionMetadata.estimatedDurationMinutes} min | {plan.therapyBlocks.length} exercises | Difficulty:{' '}
         {plan.patientProfile.difficulty}
       </div>
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -111,8 +103,6 @@ function PlanSummary({ plan }: { plan: TherapySessionPlan }) {
   );
 }
 
-// ─── Typing indicator ─────────────────────────────────────────────────────────
-
 function TypingIndicator() {
   return (
     <div className="fade-in" style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
@@ -125,11 +115,13 @@ function TypingIndicator() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '18px',
+          fontSize: '12px',
+          fontWeight: 700,
+          color: '#fff',
           flexShrink: 0,
         }}
       >
-        🤖
+        AI
       </div>
       <div
         style={{
@@ -149,7 +141,7 @@ function TypingIndicator() {
               height: 9,
               borderRadius: '50%',
               background: 'var(--color-primary)',
-              animation: `bounce 1.1s ease infinite`,
+              animation: 'bounce 1.1s ease infinite',
               animationDelay: `${i * 0.18}s`,
             }}
           />
@@ -158,8 +150,6 @@ function TypingIndicator() {
     </div>
   );
 }
-
-// ─── Main component ───────────────────────────────────────────────────────────
 
 export function ChatInterface({
   messages,
@@ -175,12 +165,10 @@ export function ChatInterface({
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to the newest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
-  // Populate the text input when a voice transcript arrives
   useEffect(() => {
     if (voiceInput) {
       setInputText(voiceInput);
@@ -202,8 +190,7 @@ export function ChatInterface({
     }
   };
 
-  const inputDisabled =
-    isLoading || status === 'completed' || status === 'idle' || status === 'starting';
+  const inputDisabled = isLoading || status === 'completed' || status === 'idle' || status === 'starting';
 
   return (
     <div
@@ -218,7 +205,6 @@ export function ChatInterface({
         overflow: 'hidden',
       }}
     >
-      {/* ── Message list ──────────────────────────────────────────────────── */}
       <div
         className="chat-scroll"
         style={{
@@ -243,7 +229,6 @@ export function ChatInterface({
               gap: '8px',
             }}
           >
-            {/* Avatar (AI only) */}
             {msg.role === 'ai' && (
               <div
                 style={{
@@ -254,31 +239,29 @@ export function ChatInterface({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '18px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: '#fff',
                   flexShrink: 0,
                 }}
               >
-                🤖
+                AI
               </div>
             )}
 
-            {/* Bubble */}
             <div
               style={{
                 maxWidth: '70%',
-                background:
-                  msg.role === 'ai' ? 'var(--color-ai-bubble)' : 'var(--color-patient-bubble)',
-                borderRadius:
-                  msg.role === 'ai' ? '4px 16px 16px 16px' : '16px 4px 16px 16px',
+                background: msg.role === 'ai' ? 'var(--color-ai-bubble)' : 'var(--color-patient-bubble)',
+                borderRadius: msg.role === 'ai' ? '4px 16px 16px 16px' : '16px 4px 16px 16px',
                 padding: '12px 16px',
-                fontSize: 'var(--font-size-lg)',
+                fontSize: 'var(--font-size-base)',
                 lineHeight: 1.55,
                 color: 'var(--color-text)',
               }}
             >
               {msg.text}
 
-              {/* Play audio button on AI messages */}
               {msg.role === 'ai' && (
                 <div style={{ marginTop: '8px' }}>
                   <button
@@ -296,7 +279,7 @@ export function ChatInterface({
                       lineHeight: 1,
                     }}
                   >
-                    ▶ Play reply again
+                    Play reply
                   </button>
                 </div>
               )}
@@ -311,7 +294,6 @@ export function ChatInterface({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* ── Input area ────────────────────────────────────────────────────── */}
       <div
         style={{
           borderTop: '2px solid var(--color-border)',
@@ -330,8 +312,8 @@ export function ChatInterface({
             status === 'completed'
               ? 'Session complete.'
               : status === 'idle' || status === 'starting'
-              ? 'Start a session first…'
-              : 'Type your answer…'
+                ? 'Start a session first...'
+                : 'Type your answer...'
           }
           disabled={inputDisabled}
           style={{ flex: 1 }}
