@@ -230,21 +230,20 @@ input[type='text']:disabled {
 .session-orb-container {
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   width: 100%;
-  min-height: clamp(250px, 36vh, 390px);
-  padding: 14px 0 26px;
+  min-height: clamp(280px, 40vh, 430px);
+  padding: 6px 0 54px;
 }
 
 .speech-orb-shell {
-  width: min(72vw, 560px);
+  width: min(48vw, 360px);
   aspect-ratio: 1;
   min-width: 300px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 30px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  transform: translateY(-18px);
 }
 
 .speech-orb-stage {
@@ -310,8 +309,11 @@ input[type='text']:disabled {
 }
 
 .speech-orb-caption {
+  position: absolute;
+  top: calc(50% + clamp(58px, 8vw, 90px));
   min-height: 1.5em;
-  width: min(88%, 520px);
+  width: min(152%, 760px);
+  max-width: calc(100vw - 64px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -579,14 +581,20 @@ input[type='text']:disabled {
   }
 
   .session-orb-container {
-    min-height: clamp(220px, 30vh, 280px);
-    padding: 6px 0 18px;
+    min-height: clamp(240px, 34vh, 320px);
+    padding: 4px 0 44px;
   }
 
   .speech-orb-shell {
     width: min(92vw, 420px);
     min-width: 260px;
-    gap: 24px;
+    transform: translateY(-10px);
+  }
+
+  .speech-orb-caption {
+    top: calc(50% + clamp(52px, 11vw, 80px));
+    width: min(96vw, 560px);
+    max-width: calc(100vw - 28px);
   }
 
 }
