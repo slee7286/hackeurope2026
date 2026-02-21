@@ -1,0 +1,6 @@
+{
+  "_warning": "Demo-only local secrets file. Do not commit.",
+  "elevenlabs_api_key": "sk_e9e6e4e78bcfc950ce5b1ca54893f8e9d4445cdbf77f1650",
+  "search_provider_api_key": "",
+  "image_provider_api_key": ""
+}

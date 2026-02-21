@@ -1,0 +1,8 @@
+{
+  "language": "en",
+  "accent": "irish",
+  "text": "Tap the Eiffel Tower.",
+  "voiceId": "JBFqnCBsd6RMkjVDRZzb",
+  "modelId": "eleven_multilingual_v2",
+  "fileName": "question_prompt.mp3"
+}
