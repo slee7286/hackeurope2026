@@ -109,7 +109,7 @@ export async function startSession(): Promise<{
   ];
 
   const response = await anthropic.messages.create({
-    model: "claude-3-5-sonnet-20241022",
+    model: "claude-sonnet-4-5",
     max_tokens: 300,
     system: CHECK_IN_SYSTEM_PROMPT,
     tools: [FINALIZE_SESSION_TOOL],
@@ -166,7 +166,7 @@ export async function processMessage(
   const messages = toAnthropicMessages(session.history);
 
   const response = await anthropic.messages.create({
-    model: "claude-3-5-sonnet-20241022",
+    model: "claude-sonnet-4-5",
     max_tokens: 500,
     system: CHECK_IN_SYSTEM_PROMPT,
     tools: [FINALIZE_SESSION_TOOL],
