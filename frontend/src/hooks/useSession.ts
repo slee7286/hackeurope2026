@@ -88,10 +88,11 @@ export function useSession() {
         status: 'ongoing',
         isLoading: false,
       }));
-    } catch {
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
       setState((prev) => ({
         ...prev,
-        error: 'Could not connect. Please check the server and try again.',
+        error: `Could not connect: ${detail}`,
         status: 'idle',
         isLoading: false,
       }));
@@ -124,10 +125,11 @@ export function useSession() {
         if (status === 'finalizing') {
           startPollingForPlan(sessionId);
         }
-      } catch {
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : String(err);
         setState((prev) => ({
           ...prev,
-          error: 'Could not send message. Please try again.',
+          error: `Could not send message: ${detail}`,
           isLoading: false,
         }));
       }

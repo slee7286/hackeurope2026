@@ -59,7 +59,10 @@ export async function startSession(): Promise<{
   message: string;
 }> {
   const res = await fetch(`${BASE}/session/start`, { method: 'POST' });
-  if (!res.ok) throw new Error(`Failed to start session: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string; detail?: string }).detail ?? (body as { error?: string }).error ?? `HTTP ${res.status}`);
+  }
   const data = await res.json();
   return {
     sessionId: data.sessionId,
@@ -86,7 +89,10 @@ export async function sendMessage(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message }),
   });
-  if (!res.ok) throw new Error(`Failed to send message: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string; detail?: string }).detail ?? (body as { error?: string }).error ?? `HTTP ${res.status}`);
+  }
   const data = await res.json();
 
   const statusMap: Record<string, SessionStatus> = {
