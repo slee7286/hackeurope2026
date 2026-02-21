@@ -12,6 +12,41 @@ interface SpeechIndicatorOrbProps {
   captionsEnabled: boolean;
 }
 
+function estimateSyllables(word: string): number {
+  const cleaned = word.replace(/[^a-zA-Z']/g, '').toLowerCase();
+  if (!cleaned) return 1;
+  const groups = cleaned.match(/[aeiouy]+/g);
+  return Math.max(1, groups?.length ?? 1);
+}
+
+function buildEstimatedWordTimings(words: string[], durationSeconds: number): SpokenWordTiming[] {
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0 || words.length === 0) {
+    return [];
+  }
+
+  const weights = words.map((word) => {
+    const cleaned = word.replace(/[^a-zA-Z']/g, '');
+    const syllables = estimateSyllables(word);
+    const lengthWeight = Math.min(1.8, cleaned.length / 7);
+    const punctuationPause = /[.!?]$/.test(word) ? 1.2 : /[,;:]$/.test(word) ? 0.55 : /[-–—]$/.test(word) ? 0.3 : 0;
+    return Math.max(0.65, syllables * 0.88 + lengthWeight + punctuationPause);
+  });
+
+  const totalWeight = weights.reduce((sum, w) => sum + w, 0) || words.length;
+  let cursor = 0;
+  const timings: SpokenWordTiming[] = [];
+
+  for (let i = 0; i < words.length; i += 1) {
+    const slice = (weights[i] / totalWeight) * durationSeconds;
+    const start = cursor;
+    const end = i === words.length - 1 ? durationSeconds : cursor + slice;
+    timings.push({ word: words[i], start, end: Math.max(end, start + 0.06) });
+    cursor = end;
+  }
+
+  return timings;
+}
+
 export function SpeechIndicatorOrb({
   audioElement,
   isPlaying,
@@ -37,6 +72,9 @@ export function SpeechIndicatorOrb({
   const wordsRef = useRef<string[]>([]);
   const activeWordIndexRef = useRef(-1);
   const wordFadeMsRef = useRef(520);
+  const estimatedWordTimingsRef = useRef<SpokenWordTiming[]>([]);
+  const estimatedDurationRef = useRef(0);
+  const estimatedWordsSignatureRef = useRef('');
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioNodesRef = useRef<{
     source: MediaElementAudioSourceNode;
@@ -62,6 +100,9 @@ export function SpeechIndicatorOrb({
     const words =
       wordTimings.length > 0 ? wordTimings.map((timing) => timing.word) : (spokenText ?? '').match(/\S+/g) ?? [];
     wordsRef.current = words;
+    estimatedWordTimingsRef.current = [];
+    estimatedDurationRef.current = 0;
+    estimatedWordsSignatureRef.current = words.join('\u0001');
     activeWordIndexRef.current = -1;
     setActiveWordIndex(-1);
   }, [spokenText, wordTimings]);
@@ -189,8 +230,23 @@ export function SpeechIndicatorOrb({
       if (playing && words.length > 0 && activeAudio) {
         const duration = activeAudio.duration;
         const ledTime = Math.max(0, activeAudio.currentTime + WORD_REVEAL_LEAD_SECONDS);
-        const timings = wordTimingsRef.current;
+        let timings = wordTimingsRef.current;
         let nextWordIndex = 0;
+
+        if (timings.length === 0 && Number.isFinite(duration) && duration > 0) {
+          const wordsSignature = words.join('\u0001');
+          const shouldRecalculate =
+            estimatedWordTimingsRef.current.length !== words.length ||
+            estimatedWordsSignatureRef.current !== wordsSignature ||
+            Math.abs(estimatedDurationRef.current - duration) > 0.08;
+
+          if (shouldRecalculate) {
+            estimatedWordTimingsRef.current = buildEstimatedWordTimings(words, duration);
+            estimatedDurationRef.current = duration;
+            estimatedWordsSignatureRef.current = wordsSignature;
+          }
+          timings = estimatedWordTimingsRef.current;
+        }
 
         if (timings.length > 0) {
           nextWordIndex = -1;

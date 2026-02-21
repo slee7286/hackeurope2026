@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from 'react';
 import { Layout } from './components/Layout';
-import { PatientHeader } from './components/PatientHeader';
 import { ChatInterface } from './components/ChatInterface';
 import { VoiceControls } from './components/VoiceControls';
 import { SessionHistory } from './components/SessionHistory';
@@ -107,7 +106,6 @@ export default function App() {
 
       {view === 'session' && (
         <section className="fade-in session-flow">
-          <PatientHeader patientId={state.patientId} />
           <div className="surface-panel session-panel">
             {state.status === 'idle' && (
               <div className="session-start">
