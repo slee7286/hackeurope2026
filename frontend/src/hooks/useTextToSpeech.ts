@@ -3,6 +3,7 @@ import { useState, useRef, useCallback } from 'react';
 export interface UseTextToSpeechResult {
   isPlaying: boolean;
   error: string | null;
+  currentAudio: HTMLAudioElement | null;
   speak: (text: string, voiceId: string) => Promise<void>;
   stop: () => void;
 }
@@ -23,15 +24,19 @@ export interface UseTextToSpeechResult {
 export function useTextToSpeech(): UseTextToSpeechResult {
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const objectUrlRef = useRef<string | null>(null);
 
   const stop = useCallback(() => {
     if (audioRef.current) {
+      audioRef.current.onended = null;
+      audioRef.current.onerror = null;
       audioRef.current.pause();
       audioRef.current.src = '';
       audioRef.current = null;
     }
+    setCurrentAudio(null);
     if (objectUrlRef.current) {
       URL.revokeObjectURL(objectUrlRef.current);
       objectUrlRef.current = null;
@@ -69,21 +74,39 @@ export function useTextToSpeech(): UseTextToSpeechResult {
 
         const audio = new Audio(audioUrl);
         audioRef.current = audio;
+        setCurrentAudio(audio);
 
         audio.onended = () => {
           setIsPlaying(false);
-          URL.revokeObjectURL(audioUrl);
-          objectUrlRef.current = null;
+          if (audioRef.current === audio) {
+            audioRef.current = null;
+            setCurrentAudio(null);
+          }
+          if (objectUrlRef.current === audioUrl) {
+            URL.revokeObjectURL(audioUrl);
+            objectUrlRef.current = null;
+          }
         };
 
         audio.onerror = () => {
           setError('Audio playback failed.');
           setIsPlaying(false);
+          if (audioRef.current === audio) {
+            audioRef.current = null;
+            setCurrentAudio(null);
+          }
+          if (objectUrlRef.current === audioUrl) {
+            URL.revokeObjectURL(audioUrl);
+            objectUrlRef.current = null;
+          }
         };
 
         await audio.play();
         setIsPlaying(true);
       } catch (err) {
+        if (audioRef.current) {
+          stop();
+        }
         setError(err instanceof Error ? err.message : 'Could not play audio.');
         setIsPlaying(false);
       }
@@ -91,5 +114,5 @@ export function useTextToSpeech(): UseTextToSpeechResult {
     [stop]
   );
 
-  return { isPlaying, error, speak, stop };
+  return { isPlaying, error, currentAudio, speak, stop };
 }
