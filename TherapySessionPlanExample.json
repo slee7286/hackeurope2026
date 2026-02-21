@@ -65,10 +65,3 @@
     }
   ]
 }
-
-[//]: # Key fields to note for your teammate:
-[//]: # therapyBlocks[].type — one of "word_repetition", "sentence_completion", "picture_description", "word_finding"
-[//]: # therapyBlocks[].items[].prompt — what to display/speak to the patient
-[//]: # therapyBlocks[].items[].answer — the expected correct response (for scoring/feedback)
-[//]: # therapyBlocks[].difficulty — "easy" | "medium" | "hard" (drives ElevenLabs pacing, hint display, etc.)
-[//]: # therapyBlocks[].topic — the subject matter (for content theming and ElevenLabs accent/voice selection if needed)
