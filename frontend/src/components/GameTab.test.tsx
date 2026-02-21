@@ -56,11 +56,13 @@ function makeStt(overrides: Partial<UseSpeechToTextResult> = {}): UseSpeechToTex
 
 function makeTts(overrides: Partial<UseTextToSpeechResult> = {}): UseTextToSpeechResult {
   return {
-    isPlaying: false,
-    error: null,
-    speak: vi.fn(async () => {}),
-    stop: vi.fn(),
-    ...overrides,
+    isPlaying: overrides.isPlaying ?? false,
+    error: overrides.error ?? null,
+    currentAudio: overrides.currentAudio ?? null,
+    currentText: overrides.currentText ?? null,
+    currentWordTimings: overrides.currentWordTimings ?? [],
+    speak: overrides.speak ?? vi.fn(async () => {}),
+    stop: overrides.stop ?? vi.fn(),
   };
 }
 
@@ -96,6 +98,7 @@ describe('GameTab audio-first input flow', () => {
         tts={makeTts()}
         stt={makeStt()}
         selectedVoiceId="voice-1"
+        speechRate={0.8}
       />
     );
 
@@ -116,6 +119,7 @@ describe('GameTab audio-first input flow', () => {
         tts={makeTts()}
         stt={makeStt({ startRecording, stopRecording })}
         selectedVoiceId="voice-1"
+        speechRate={0.8}
       />
     );
 
@@ -129,6 +133,7 @@ describe('GameTab audio-first input flow', () => {
         tts={makeTts()}
         stt={makeStt({ isRecording: true, startRecording, stopRecording })}
         selectedVoiceId="voice-1"
+        speechRate={0.8}
       />
     );
 
@@ -152,6 +157,7 @@ describe('GameTab audio-first input flow', () => {
         tts={makeTts()}
         stt={makeStt({ startRecording, stopRecording })}
         selectedVoiceId="voice-1"
+        speechRate={0.8}
       />
     );
 
@@ -164,6 +170,7 @@ describe('GameTab audio-first input flow', () => {
         tts={makeTts()}
         stt={makeStt({ isRecording: true, startRecording, stopRecording })}
         selectedVoiceId="voice-1"
+        speechRate={0.8}
       />
     );
 
@@ -184,6 +191,7 @@ describe('GameTab audio-first input flow', () => {
         tts={makeTts()}
         stt={makeStt()}
         selectedVoiceId="voice-1"
+        speechRate={0.8}
       />
     );
 
@@ -194,6 +202,7 @@ describe('GameTab audio-first input flow', () => {
         tts={makeTts()}
         stt={makeStt({ transcript: 'hello there', clearTranscript })}
         selectedVoiceId="voice-1"
+        speechRate={0.8}
       />
     );
 
@@ -225,6 +234,7 @@ describe('GameTab audio-first input flow', () => {
         tts={makeTts()}
         stt={makeStt()}
         selectedVoiceId="voice-1"
+        speechRate={0.8}
       />
     );
 
@@ -235,6 +245,7 @@ describe('GameTab audio-first input flow', () => {
         tts={makeTts()}
         stt={makeStt({ transcript: 'helo' })}
         selectedVoiceId="voice-1"
+        speechRate={0.8}
       />
     );
 
@@ -258,6 +269,7 @@ describe('GameTab audio-first input flow', () => {
         tts={makeTts()}
         stt={makeStt({ transcript: 'first try', startRecording, stopRecording })}
         selectedVoiceId="voice-1"
+        speechRate={0.8}
       />
     );
 
@@ -272,6 +284,7 @@ describe('GameTab audio-first input flow', () => {
         tts={makeTts()}
         stt={makeStt({ isRecording: true, transcript: 'first try', startRecording, stopRecording })}
         selectedVoiceId="voice-1"
+        speechRate={0.8}
       />
     );
 
@@ -285,6 +298,7 @@ describe('GameTab audio-first input flow', () => {
         tts={makeTts()}
         stt={makeStt({ transcript: 'second try', startRecording, stopRecording })}
         selectedVoiceId="voice-1"
+        speechRate={0.8}
       />
     );
 
