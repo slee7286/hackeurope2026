@@ -195,30 +195,32 @@ export default function App() {
 
             {sessionActive && (
               <>
-                <div className="session-captions-toggle-row">
-                  <label className="caption-toggle" htmlFor="caption-toggle-input">
-                    <span className="caption-toggle-label">Captions</span>
-                    <input
-                      id="caption-toggle-input"
-                      type="checkbox"
-                      checked={captionsEnabled}
-                      onChange={(e) => handleCaptionsToggle(e.target.checked)}
+                <div className="session-orb-panel">
+                  <div className="session-captions-toggle-row">
+                    <label className="caption-toggle" htmlFor="caption-toggle-input">
+                      <span className="caption-toggle-label">Captions</span>
+                      <input
+                        id="caption-toggle-input"
+                        type="checkbox"
+                        checked={captionsEnabled}
+                        onChange={(e) => handleCaptionsToggle(e.target.checked)}
+                      />
+                      <span className="caption-toggle-slider" aria-hidden="true" />
+                    </label>
+                  </div>
+
+                  <div className="session-orb-container">
+                    <SpeechIndicatorOrb
+                      audioElement={tts.currentAudio}
+                      isPlaying={tts.isPlaying}
+                      spokenText={tts.currentText}
+                      wordTimings={tts.currentWordTimings}
+                      captionsEnabled={captionsEnabled}
                     />
-                    <span className="caption-toggle-slider" aria-hidden="true" />
-                  </label>
+                  </div>
                 </div>
 
-                <div className="session-orb-container">
-                  <SpeechIndicatorOrb
-                    audioElement={tts.currentAudio}
-                    isPlaying={tts.isPlaying}
-                    spokenText={tts.currentText}
-                    wordTimings={tts.currentWordTimings}
-                    captionsEnabled={captionsEnabled}
-                  />
-                </div>
-
-                <div className="surface-panel session-voice-output">
+                <div className="session-voice-output">
                   <div className="session-voice-controls">
                     <button
                       className="btn-primary"

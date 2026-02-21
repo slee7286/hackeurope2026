@@ -198,7 +198,9 @@ export function SpeechIndicatorOrb({
       const normalized = Math.min(1, Math.max(0, (amplitude - 0.01) * 5.8));
       signalLevelRef.current = signalLevelRef.current * 0.82 + normalized * 0.18;
 
-      const idlePulse = 0.12 + 0.035 * Math.sin(timestamp * 0.0019);
+      const idlePrimary = Math.sin(timestamp * 0.00215);
+      const idleSecondary = Math.sin(timestamp * 0.00105 + 1.1);
+      const idlePulse = Math.min(0.26, Math.max(0.07, 0.14 + idlePrimary * 0.048 + idleSecondary * 0.018));
       let target = idlePulse;
 
       if (playing) {
@@ -296,8 +298,11 @@ export function SpeechIndicatorOrb({
       }
 
       if (ambientHalo) {
-        const haloScale = 1.08 + level * 1.35;
-        const haloOpacity = phase === 'speaking' ? 0.24 + level * 0.46 : 0.12 + level * 0.24;
+        const idleHaloWave = Math.sin(timestamp * 0.0017) * 0.02;
+        const idleHaloBoost = phase === 'idle' ? 0.11 + idleHaloWave : phase === 'paused' ? 0.05 : 0;
+        const haloScale = 1.08 + level * 1.35 + idleHaloBoost;
+        const haloOpacity =
+          phase === 'speaking' ? 0.24 + level * 0.46 : phase === 'idle' ? 0.2 + level * 0.42 : 0.17 + level * 0.34;
         ambientHalo.style.transform = `scale(${haloScale.toFixed(3)})`;
         ambientHalo.style.opacity = haloOpacity.toFixed(3);
       }

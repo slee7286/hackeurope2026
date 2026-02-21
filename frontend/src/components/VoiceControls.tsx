@@ -60,8 +60,10 @@ export function VoiceControls({
         padding: embedded ? '0' : '16px 20px',
         display: 'flex',
         alignItems: 'center',
+        justifyContent: buttonsOnly ? 'center' : 'flex-start',
         gap: '14px',
         flexWrap: 'wrap',
+        width: '100%',
       }}
     >
       {!buttonsOnly && (
