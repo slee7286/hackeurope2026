@@ -234,51 +234,6 @@ Response:
   "next_question": { ...QuestionPayload }
 }
 
-### 7.4 Orchestrator -> Client: Therapy Session Plan (Structured)
-Use this contract when the backend returns a pre-built multi-block therapy plan (instead of only single-question payloads).
-
-Response:
-{
-  "patientProfile": {
-    "mood": "string",
-    "interests": ["string"],
-    "difficulty": "easy|medium|hard",
-    "notes": "string"
-  },
-  "sessionMetadata": {
-    "sessionId": "string",
-    "createdAt": "ISO-8601 datetime string",
-    "estimatedDurationMinutes": 15
-  },
-  "therapyBlocks": [
-    {
-      "blockId": "string",
-      "type": "word_repetition|sentence_completion|picture_description|word_finding",
-      "topic": "string",
-      "difficulty": "easy|medium|hard",
-      "description": "string",
-      "items": [
-        {
-          "prompt": "string",
-          "answer": "string"
-        }
-      ]
-    }
-  ]
-}
-
-Field rules (required):
-- `therapyBlocks[].type`: one of `word_repetition`, `sentence_completion`, `picture_description`, `word_finding`
-- `therapyBlocks[].items[].prompt`: the text displayed/spoken to the patient
-- `therapyBlocks[].items[].answer`: expected correct response for scoring and feedback
-- `therapyBlocks[].difficulty`: `easy`, `medium`, or `hard` (drives ElevenLabs pacing, hint display, and support level)
-- `therapyBlocks[].topic`: subject matter used for content theming and optional voice/accent tuning
-
-Validation minimums:
-- Each block must contain at least 1 item
-- `prompt` and `answer` must be non-empty strings
-- Unknown `type` or `difficulty` values must fail validation
-
 ## 8) Retrieval Agent Requirements
 
 Input:
@@ -378,8 +333,6 @@ Requirements:
 MVP behavior:
 - One voice profile per session
 - Provide replay capability on client
-- If using structured therapy blocks, pacing and delivery can be adjusted by `therapyBlocks[].difficulty`
-- `therapyBlocks[].topic` may be used for optional accent/voice selection when configured
 - No fallback provider in MVP
 
 ## 13) Client UI Requirements
@@ -400,11 +353,6 @@ MVP behavior:
 - Visual indicator correct/incorrect
 - Short feedback text
 - Optional spoken feedback (same ElevenLabs voice)
-
-### 13.4 Therapy Block Renderer (for structured plans)
-- Render blocks sequentially from `therapyBlocks[]`
-- For each item, show/play `items[].prompt`, capture response, compare with `items[].answer`
-- Show block-level topic and difficulty to drive UI supports (hints, pacing, repetition prompts)
 
 ## 14) Non-Goals (Out of scope for MVP)
 - Clinician dashboards and reporting
@@ -429,10 +377,6 @@ MVP behavior:
 - Cache Wikipedia image resolutions per entity to reduce latency
 - Log minimal diagnostics for debugging: retrieval results count, entity selection, resolver failures, speech API errors
 - Speech data storage/retention is handled outside this scope by another stack area
-
-## 17) Example Artifact Alignment
-- `TherapySessionPlanExample.json` is consistent with the structured contract in section 7.4.
-- Existing keys like `patientProfile`, `sessionMetadata`, `blockId`, and `description` are optional enrichments beyond the required therapy block fields listed above.
 
 End of spec.
 
