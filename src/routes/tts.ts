@@ -36,11 +36,16 @@ ttsRouter.post(
         return;
       }
 
-      // Use the provided voiceId, env default, or the ElevenLabs "Rachel" voice
+      // Use the provided voiceId or fall back to env default
       const targetVoiceId =
         voiceId ??
         process.env.ELEVENLABS_DEFAULT_VOICE_ID ??
         "EXAVITQu4vr4xnSDxMaL"; // Rachel — calm, clear, good for therapy
+
+      // eleven_flash_v2_5 is fast and available on the free tier.
+      // Override via ELEVENLABS_MODEL_ID in .env if needed.
+      const modelId =
+        process.env.ELEVENLABS_MODEL_ID ?? "eleven_flash_v2_5";
 
       // Call ElevenLabs TTS REST API
       const elevenRes = await fetch(
@@ -54,7 +59,7 @@ ttsRouter.post(
           },
           body: JSON.stringify({
             text: text.trim(),
-            model_id: "eleven_monolingual_v1",
+            model_id: modelId,
             voice_settings: {
               stability: 0.75,        // Higher = more consistent pacing (good for therapy)
               similarity_boost: 0.75, // Balance naturalness vs. voice consistency
