@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { Layout } from './components/Layout';
-import { PatientHeader } from './components/PatientHeader';
 import { ChatInterface } from './components/ChatInterface';
 import { VoiceControls } from './components/VoiceControls';
+import { SessionHistory } from './components/SessionHistory';
 import { useSession } from './hooks/useSession';
 import { useSpeechToText } from './hooks/useSpeechToText';
 import { useTextToSpeech } from './hooks/useTextToSpeech';
@@ -11,7 +11,10 @@ import { useTextToSpeech } from './hooks/useTextToSpeech';
 // ElevenLabs voice IDs can be browsed at: https://elevenlabs.io/voice-library
 const SELECTED_VOICE_ID = 'EXAVITQu4vr4xnSDxMaL'; // Rachel — calm, clear
 
+type View = 'home' | 'session' | 'history';
+
 export default function App() {
+  const [view, setView] = useState<View>('home');
   const { state, start, send } = useSession();
   const stt = useSpeechToText();
   const tts = useTextToSpeech();
@@ -31,122 +34,104 @@ export default function App() {
     setPendingVoiceInput('');
   }, []);
 
-  const sessionActive =
-    state.status !== 'idle' && state.status !== 'starting';
+  const sessionActive = state.status !== 'idle' && state.status !== 'starting';
+
+  const handleStartSession = useCallback(async () => {
+    setView('session');
+    await start();
+  }, [start]);
 
   return (
-    <Layout>
-      {/* ── Patient header + Duolingo-style progress ───────────────────── */}
-      <PatientHeader patientId={state.patientId} />
-
-      {/* ── Session start screen ──────────────────────────────────────── */}
-      {state.status === 'idle' && (
-        <div
-          style={{
-            textAlign: 'center',
-            padding: '28px 0 10px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '12px',
-          }}
-        >
-          <div
-            style={{
-              fontSize: 'var(--font-size-base)',
-              color: 'var(--color-text-muted)',
-              maxWidth: '400px',
-            }}
-          >
-            Press the button to start your session. We will ask a few short questions first.
+    <Layout showBackButton={view !== 'home'} onBackButtonClick={() => setView('home')}>
+      {view === 'home' && (
+        <section className="surface-panel fade-in">
+          <h2 className="panel-title">Welcome</h2>
+          <p className="panel-copy">Select what you would like to do.</p>
+          <div className="home-actions">
+            <button onClick={handleStartSession} className="btn-primary home-btn">
+              Check into session
+            </button>
+            <button onClick={() => setView('history')} className="btn-secondary home-btn">
+              Session history
+            </button>
           </div>
-          <button
-            onClick={start}
-            style={{
-              background: 'var(--color-accent)',
-              color: '#fff',
-              fontSize: 'var(--font-size-xl)',
-              padding: '0.65em 2.2em',
-              borderRadius: 'var(--radius)',
-              boxShadow: 'var(--shadow)',
-            }}
-          >
-            Start session
-          </button>
-        </div>
+        </section>
       )}
 
-      {state.status === 'starting' && (
-        <div
-          style={{
-            textAlign: 'center',
-            color: 'var(--color-text-muted)',
-            padding: '24px 0',
-            fontSize: 'var(--font-size-lg)',
-          }}
-        >
-          Getting ready…
-        </div>
+      {view === 'history' && (
+        <section className="fade-in">
+          <SessionHistory />
+        </section>
       )}
 
-      {/* ── Error notice ──────────────────────────────────────────────── */}
-      {state.error && (
-        <div
-          style={{
-            background: '#fef2f2',
-            border: '2px solid var(--color-danger)',
-            borderRadius: 'var(--radius-sm)',
-            padding: '12px 16px',
-            color: 'var(--color-danger)',
-            fontWeight: 600,
-            fontSize: 'var(--font-size-base)',
-          }}
-        >
-          ⚠ {state.error}
-        </div>
-      )}
+      {view === 'session' && (
+        <section className="fade-in session-flow">
+          <div className="surface-panel session-panel">
+            {state.status === 'idle' && (
+              <div className="session-start">
+                <p className="panel-copy">Press the button to start your session.</p>
+                <button onClick={handleStartSession} className="btn-primary">
+                  Check into session
+                </button>
+              </div>
+            )}
 
-      {/* ── TTS error notice ──────────────────────────────────────────── */}
-      {tts.error && (
-        <div
-          style={{
-            background: '#fff7ed',
-            border: '1.5px solid var(--color-warning)',
-            borderRadius: 'var(--radius-sm)',
-            padding: '8px 14px',
-            color: 'var(--color-warning)',
-            fontSize: 'var(--font-size-sm)',
-          }}
-        >
-          ⚠ Audio: {tts.error}
-        </div>
-      )}
+            {state.status === 'starting' && <div className="session-loading">Getting ready...</div>}
 
-      {/* ── Chat + voice controls (shown once session is active) ──────── */}
-      {sessionActive && (
-        <>
-          <ChatInterface
-            messages={state.messages}
-            status={state.status}
-            plan={state.plan}
-            isLoading={state.isLoading}
-            onSend={send}
-            voiceInput={pendingVoiceInput}
-            onVoiceInputConsumed={handleVoiceInputConsumed}
-            tts={tts}
-            selectedVoiceId={SELECTED_VOICE_ID}
-          />
+            {state.error && (
+              <div
+                style={{
+                  background: '#fff4f4',
+                  border: '2px solid var(--color-danger)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '12px 16px',
+                  color: 'var(--color-danger)',
+                  fontWeight: 600,
+                  fontSize: 'var(--font-size-base)',
+                }}
+              >
+                {state.error}
+              </div>
+            )}
 
-          <VoiceControls
-            stt={stt}
-            onTranscriptReady={handleTranscriptReady}
-            disabled={
-              state.isLoading ||
-              state.status === 'completed' ||
-              state.status === 'finalizing'
-            }
-          />
-        </>
+            {tts.error && (
+              <div
+                style={{
+                  background: '#fff7ed',
+                  border: '1.5px solid var(--color-warning)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '8px 14px',
+                  color: 'var(--color-warning)',
+                  fontSize: 'var(--font-size-sm)',
+                }}
+              >
+                Audio: {tts.error}
+              </div>
+            )}
+
+            {sessionActive && (
+              <>
+                <ChatInterface
+                  messages={state.messages}
+                  status={state.status}
+                  plan={state.plan}
+                  isLoading={state.isLoading}
+                  onSend={send}
+                  voiceInput={pendingVoiceInput}
+                  onVoiceInputConsumed={handleVoiceInputConsumed}
+                  tts={tts}
+                  selectedVoiceId={SELECTED_VOICE_ID}
+                />
+
+                <VoiceControls
+                  stt={stt}
+                  onTranscriptReady={handleTranscriptReady}
+                  disabled={state.isLoading || state.status === 'completed' || state.status === 'finalizing'}
+                />
+              </>
+            )}
+          </div>
+        </section>
       )}
     </Layout>
   );
