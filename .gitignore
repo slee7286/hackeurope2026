@@ -18,6 +18,7 @@ out/
 tmp/
 temp/
 *.tsbuildinfo
+.idea/
 
 # If frontend has its own build dir
 frontend/dist/
