@@ -1,29 +1,29 @@
-# SLT Accent-Friendly Therapy App (MVP) — Architecture Spec
+# SLT Accent-Friendly Therapy App (MVP) - Architecture Spec
 
-Version: 0.1 (MVP)  
+Version: 0.2 (MVP)  
 Date: 2026-02-21  
 Audience: Engineers and AI coding agents implementing the MVP
 
 ## 1) Goal
 
-Build a simple mobile/web app that helps speech and language therapy users (target: aphasia) practice comprehension using natural-sounding TTS voices (ElevenLabs) and image-based multiple-choice questions grounded in fresh, user-chosen topics.
+Build a simple mobile/web app that helps speech and language therapy users (target: aphasia) practice comprehension using natural-sounding voices (ElevenLabs) and image-based multiple-choice questions grounded in fresh, user-chosen topics.
 
 Key product premise:
 - Post-stroke users can struggle to understand unfamiliar accents
 - Many apps use robotic voices
-- This app uses high-quality voices (ElevenLabs) and short prompts
+- This app uses high-quality speech (ElevenLabs) and short prompts
 
 ## 2) MVP User Experience
 
 ### 2.1 Primary Flow
 1. User logs in
-2. App asks (spoken + on-screen): “What do you want to talk about today?”
-3. User speaks their topic
-4. App shows an editable text box with the ASR transcript
+2. App asks (spoken + on-screen): "What do you want to talk about today?"
+3. User speaks their topic (max 120 seconds)
+4. App transcribes speech via ElevenLabs STT and shows an editable transcript
 5. User edits the text (optional) and taps Continue
 6. App searches the web for relevant, recent information
 7. App picks a concrete exercise target related to that topic
-8. App speaks a short one-sentence prompt using ElevenLabs
+8. App speaks a short one-sentence prompt using ElevenLabs TTS
 9. App shows 4 images (1 correct + 3 distractors)
 10. User taps an image
 11. App provides immediate feedback (spoken + visual)
@@ -32,6 +32,9 @@ Key product premise:
 ### 2.2 Interaction Constraints (MVP)
 - Only the first step uses user speech (topic input)
 - After that, user interacts by tapping images (no repeating aloud required)
+- Topic audio input is capped at 120 seconds
+- Languages and accents are limited to those supported by ElevenLabs
+- No speech provider fallback is implemented in MVP
 - No clinician dashboard, no analytics export, no medical-device features
 - Safety fallbacks are minimal, but must not show broken UI
 
@@ -59,9 +62,9 @@ Use a consistent structure:
 - Prompt: short, one target, one instruction
 
 Examples:
-- “I found something about Garry Ringrose. Tap Garry Ringrose.”
-- “This topic mentions the Eiffel Tower. Tap the Eiffel Tower.”
-- “I read about a red panda. Tap the red panda.”
+- "I found something about Garry Ringrose. Tap Garry Ringrose."
+- "This topic mentions the Eiffel Tower. Tap the Eiffel Tower."
+- "I read about a red panda. Tap the red panda."
 
 Avoid:
 - Multi-step prompts
@@ -73,15 +76,15 @@ Avoid:
 ### 5.1 Components
 A. Client App (Mobile/Web)
 - Login UI
-- Topic capture UI (microphone)
+- Topic capture UI (microphone, max 120 seconds)
 - ASR transcript confirmation + editing
 - Question UI (prompt text + audio + 2x2 image grid)
 - Feedback UI
 - Session loop
 
 B. Backend Orchestrator API (thin)
-- Receives finalized topic text
-- Coordinates retrieval → question building → image selection → response payload
+- Receives topic audio for transcription, then finalized topic text
+- Coordinates retrieval -> question building -> image selection -> response payload
 - Stores minimal session state (optional)
 
 C. Retrieval Agent (web browsing/search)
@@ -105,31 +108,68 @@ F. Distractor Selector
   - Reasonably confusable (not identical)
   - Have valid Wikipedia images
 
-G. ElevenLabs TTS Service
-- Synthesizes prompt audio in selected voice/accent
-- Returns audio URL or base64 audio bytes
+G. ElevenLabs STT Service
+- Transcribes topic audio to text
+- Supports only languages available in ElevenLabs
+- Returns transcript text for user confirmation/edit
 
-### 5.2 Data Flow (Request → Response)
-1. Client sends: user_id, topic_text, preferences
-2. Orchestrator calls Retrieval Agent → sources[]
-3. Orchestrator calls Question Builder → target_entity, prompt_text
-4. Orchestrator calls Wikipedia Media Resolver (target) → target_image_url
-5. Orchestrator calls Distractor Selector → distractors[3]
-6. Orchestrator calls ElevenLabs TTS → prompt_audio_url
-7. Orchestrator returns Question Payload to client
+H. ElevenLabs TTS Service
+- Synthesizes prompt audio in admin-selected voice/accent
+- Returns prompt audio URL (MVP default)
+
+### 5.2 Data Flow (Request -> Response)
+1. Client records topic audio (<= 120 seconds)
+2. Client sends topic audio to Orchestrator
+3. Orchestrator calls ElevenLabs STT -> transcript_text
+4. Orchestrator returns transcript_text to client for confirmation/edit
+5. Client sends: user_id, confirmed topic_text, preferences
+6. Orchestrator calls Retrieval Agent -> sources[]
+7. Orchestrator calls Question Builder -> target_entity, prompt_text
+8. Orchestrator calls Wikipedia Media Resolver (target) -> target_image_url
+9. Orchestrator calls Distractor Selector -> distractors[3]
+10. Orchestrator calls ElevenLabs TTS -> prompt_audio_url
+11. Orchestrator returns Question Payload to client
 
 ## 6) Minimal Reliability Guardrails (MVP)
 Even if safety fallbacks are not a priority, the MVP must:
 - Never present missing/broken images in the 2x2 grid
 - If any image is missing, regenerate the question with a new target
+- If STT or TTS fails, show a clear error state and allow user retry
 
 Regeneration rule:
 - Attempt up to MAX_RETRIES = 3 to build a valid 4-image question
-- If still failing, return an error state: “Couldn’t build a question for that topic. Try a different topic.”
+- If still failing, return an error state: "Couldn't build a question for that topic. Try a different topic."
+
+Speech-provider rule:
+- No secondary speech provider fallback in MVP
 
 ## 7) APIs and Contracts
 
-### 7.1 Client → Orchestrator: Start Session
+### 7.1 Client -> Orchestrator: Transcribe Topic
+POST /api/speech/transcribe
+
+Request:
+{
+  "user_id": "string",
+  "audio_base64": "string",
+  "mime_type": "audio/webm",
+  "duration_seconds": 75,
+  "language_hint": "string|null"
+}
+
+Validation:
+- duration_seconds must be <= 120
+- mime_type must be in an allowed list
+- language/accent must be supported by ElevenLabs
+
+Response:
+{
+  "transcript_text": "string",
+  "detected_language": "string|null",
+  "provider": "elevenlabs"
+}
+
+### 7.2 Client -> Orchestrator: Start Session
 POST /api/session/start
 
 Request:
@@ -137,12 +177,14 @@ Request:
   "user_id": "string",
   "topic_text": "string",
   "preferences": {
-    "voice_id": "string",
-    "accent_label": "string",
-    "language": "en",
+    "language": "string",
     "max_questions": 10
   }
 }
+
+Notes:
+- Voice/accent is admin-configured and enforced server-side for MVP
+- Client does not choose voice_id or accent_label in MVP
 
 Response:
 {
@@ -150,7 +192,7 @@ Response:
   "question": { ...QuestionPayload }
 }
 
-### 7.2 Orchestrator → Client: Question Payload
+### 7.3 Orchestrator -> Client: Question Payload
 {
   "question_id": "string",
   "prompt_text": "string",
@@ -174,7 +216,7 @@ Note:
 - For MVP, you may return correct_choice_id to the client for local validation.
 - For a more secure design later, keep correctness server-side.
 
-### 7.3 Client → Orchestrator: Submit Answer
+### 7.4 Client -> Orchestrator: Submit Answer
 POST /api/session/answer
 
 Request:
@@ -267,21 +309,37 @@ Generation strategies (in order):
 If insufficient distractors found:
 - Regenerate with a new target entity
 
-## 12) ElevenLabs TTS
+## 12) ElevenLabs Speech Services
 
+### 12.1 STT (Topic Input)
 Requirements:
-- Synthesize prompt_text to audio
-- Voice selection comes from preferences.voice_id
-- Return audio URL or bytes
+- Use ElevenLabs STT API for first-step topic transcription
+- Accept recordings up to 120 seconds
+- Support only languages provided by ElevenLabs
+- Return transcript text for user confirmation/edit
 
 MVP behavior:
-- One voice per session
+- Single STT provider (ElevenLabs only)
+- No fallback provider in MVP
+- User can manually edit transcript before session starts
+
+### 12.2 TTS (Prompts + Feedback)
+Requirements:
+- Synthesize prompt_text to audio
+- Voice/accent is admin-locked for the user/session
+- Use only accents/languages supported by ElevenLabs
+- Return prompt_audio_url (MVP default format delivery)
+
+MVP behavior:
+- One voice profile per session
 - Provide replay capability on client
+- No fallback provider in MVP
 
 ## 13) Client UI Requirements
 
 ### 13.1 Topic Capture Screen
 - Microphone button
+- 120-second max recording limit indicator
 - Transcript in editable textbox
 - Continue button
 
@@ -303,9 +361,12 @@ MVP behavior:
 - Advanced safety filters and fallback content libraries
 - Regulatory/medical device compliance features
 - User speech repetition and scoring
+- Multi-provider speech fallback and provider failover
+- Speech storage/retention policy design (owned by another stack component/team)
 
 ## 15) Success Criteria (MVP)
-- User can input a topic by voice, correct via text
+- User can input a topic by voice (<= 120 seconds), then correct via text
+- STT and TTS run through ElevenLabs for supported languages/accents
 - System generates a valid 4-choice image question consistently
 - Prompt audio is natural and understandable (ElevenLabs)
 - No broken images displayed
@@ -314,6 +375,8 @@ MVP behavior:
 ## 16) Implementation Notes (Pragmatic)
 - Keep orchestrator stateless where possible; store only session_id and last questions if needed
 - Cache Wikipedia image resolutions per entity to reduce latency
-- Log minimal diagnostics for debugging: retrieval results count, entity selection, resolver failures
+- Log minimal diagnostics for debugging: retrieval results count, entity selection, resolver failures, speech API errors
+- Speech data storage/retention is handled outside this scope by another stack area
 
 End of spec.
+
