@@ -12,6 +12,37 @@
   },
   "therapyBlocks": [
     {
+      "blockId": "block-0",
+      "type": "picture_description",
+      "topic": "family",
+      "difficulty": "easy",
+      "description": "Tap the matching family member image",
+      "items": [
+        {
+          "prompt": "Tap the dad",
+          "answer": "dad",
+          "correctChoiceId": "B",
+          "choices": [
+            { "id": "A", "label": "mom", "imageUrl": "/test-images/choice-1.svg" },
+            { "id": "B", "label": "dad", "imageUrl": "/test-images/choice-2.svg" },
+            { "id": "C", "label": "son", "imageUrl": "/test-images/choice-3.svg" },
+            { "id": "D", "label": "daughter", "imageUrl": "/test-images/choice-4.svg" }
+          ]
+        },
+        {
+          "prompt": "Tap the mom",
+          "answer": "mom",
+          "correctChoiceId": "A",
+          "choices": [
+            { "id": "A", "label": "mom", "imageUrl": "/test-images/choice-1.svg" },
+            { "id": "B", "label": "dad", "imageUrl": "/test-images/choice-2.svg" },
+            { "id": "C", "label": "son", "imageUrl": "/test-images/choice-3.svg" },
+            { "id": "D", "label": "daughter", "imageUrl": "/test-images/choice-4.svg" }
+          ]
+        }
+      ]
+    },
+    {
       "blockId": "block-1",
       "type": "word_repetition",
       "topic": "family",
