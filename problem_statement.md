@@ -23,4 +23,3 @@ Using agentic AI and natural sounding AI voices we will develop a modern speech 
 
 [1] https://aphasia.org/statistics/
 [2] https://www.who.int/news-room/fact-sheets/detail/stroke
-

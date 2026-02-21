@@ -52,7 +52,7 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
             background: disabled ? 'var(--color-border)' : 'var(--color-primary)',
             color: '#fff',
             fontSize: 'var(--font-size-base)',
-            padding: '0.55em 1.1em',
+            padding: '0.55em 1.4em',
             borderRadius: 'var(--radius-sm)',
           }}
         >
@@ -66,7 +66,7 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
             background: 'var(--color-danger)',
             color: '#fff',
             fontSize: 'var(--font-size-base)',
-            padding: '0.55em 1.1em',
+            padding: '0.55em 1.4em',
             borderRadius: 'var(--radius-sm)',
           }}
         >
@@ -74,7 +74,7 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
         </button>
       )}
 
-      {/* Recording pulse + label */}
+      {/* Recording indicator */}
       {stt.isRecording && (
         <div
           style={{
@@ -83,42 +83,58 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
             gap: '8px',
             color: 'var(--color-danger)',
             fontWeight: 600,
+            fontSize: 'var(--font-size-sm)',
           }}
+          aria-live="assertive"
         >
           <span
             style={{
               display: 'inline-block',
-              width: 11,
-              height: 11,
+              width: 10,
+              height: 10,
               borderRadius: '50%',
               background: 'var(--color-danger)',
               animation: 'pulse 1s ease infinite',
             }}
+            aria-hidden="true"
           />
-          Listening...
+          Recording...
         </div>
       )}
 
       {/* Confirmation that transcript was received */}
       {stt.transcript && !stt.isRecording && (
-        <div style={{ color: 'var(--color-primary)', fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>
-          Added to input. Review and press Send.
+        <div
+          style={{
+            color: 'var(--color-accent)',
+            fontSize: 'var(--font-size-sm)',
+            fontWeight: 600,
+          }}
+        >
+          Answer added to input. Review and press Send.
         </div>
       )}
 
-      {stt.error && <div style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)' }}>{stt.error}</div>}
+      {stt.error && (
+        <div
+          style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)' }}
+          role="alert"
+        >
+          {stt.error}
+        </div>
+      )}
 
       {/* Attribution */}
       <div
         style={{
           marginLeft: 'auto',
-          fontSize: '13px',
-          color: 'var(--color-text-muted)',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        Powered by Google STT
-      </div>
+        fontSize: '13px',
+        color: 'var(--color-text-muted)',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      Google Speech-to-Text
     </div>
-  );
+  </div>
+);
 }
