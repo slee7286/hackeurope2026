@@ -228,6 +228,32 @@ input[type='text']:disabled {
   min-height: 220px;
 }
 
+.session-voice-output {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px;
+}
+
+.session-voice-output-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.session-voice-output-header h3 {
+  font-size: var(--font-size-lg);
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.session-voice-output p {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
 .session-captions-toggle-row {
   display: flex;
   justify-content: flex-end;
@@ -964,6 +990,10 @@ input[type='text']:disabled {
 
   .home-btn {
     width: 100%;
+  }
+
+  .session-voice-output-header h3 {
+    font-size: var(--font-size-base);
   }
 
   .session-orb-container {

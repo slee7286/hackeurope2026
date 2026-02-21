@@ -3,7 +3,7 @@ import type { UseSpeechToTextResult } from '../hooks/useSpeechToText';
 
 interface VoiceControlsProps {
   stt: UseSpeechToTextResult;
-  /** Called with the recognised text so the chat input can be pre-filled. */
+  /** Called with the recognised text so it can be sent to the session. */
   onTranscriptReady: (text: string) => void;
   disabled: boolean;
 }
@@ -14,7 +14,7 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
   const [holdHint, setHoldHint] = useState<string | null>(null);
   const holdStartTimeRef = useRef<number | null>(null);
 
-  // Forward transcript to parent (ChatInterface input) when it arrives
+  // Forward transcript to parent when it arrives
   useEffect(() => {
     if (stt.transcript) {
       setHoldHint(null);
@@ -152,7 +152,7 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
             fontWeight: 600,
           }}
         >
-          Answer added to input. Review and press Send.
+          Voice input captured and sent.
         </div>
       )}
 

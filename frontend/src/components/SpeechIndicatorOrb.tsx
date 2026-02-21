@@ -28,7 +28,13 @@ function buildEstimatedWordTimings(words: string[], durationSeconds: number): Sp
     const cleaned = word.replace(/[^a-zA-Z']/g, '');
     const syllables = estimateSyllables(word);
     const lengthWeight = Math.min(1.8, cleaned.length / 7);
-    const punctuationPause = /[.!?]$/.test(word) ? 1.2 : /[,;:]$/.test(word) ? 0.55 : /[-–—]$/.test(word) ? 0.3 : 0;
+    const punctuationPause = /[.!?]$/.test(word)
+      ? 1.2
+      : /[,;:]$/.test(word)
+        ? 0.55
+        : /(?:-|\u2013|\u2014)$/.test(word)
+          ? 0.3
+          : 0;
     return Math.max(0.65, syllables * 0.88 + lengthWeight + punctuationPause);
   });
 

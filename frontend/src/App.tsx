@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from 'react';
 import { Layout } from './components/Layout';
-import { ChatInterface } from './components/ChatInterface';
 import { VoiceControls } from './components/VoiceControls';
 import { SessionHistory } from './components/SessionHistory';
 import { AdminVoiceSettings } from './components/AdminVoiceSettings';
@@ -39,19 +38,15 @@ export default function App() {
   const stt = useSpeechToText();
   const tts = useTextToSpeech();
 
-  const [pendingVoiceInput, setPendingVoiceInput] = useState('');
-
   const handleTranscriptReady = useCallback(
     (text: string) => {
-      setPendingVoiceInput(text);
+      const trimmed = text.trim();
       stt.clearTranscript();
+      if (!trimmed) return;
+      void send(trimmed);
     },
-    [stt]
+    [send, stt]
   );
-
-  const handleVoiceInputConsumed = useCallback(() => {
-    setPendingVoiceInput('');
-  }, []);
 
   const handleApplyVoice = useCallback((nextVoiceId: string, nextSpeechRate: number) => {
     setSelectedVoiceId(nextVoiceId);
@@ -68,6 +63,7 @@ export default function App() {
 
   const sessionActive = state.status !== 'idle' && state.status !== 'starting';
   const planReady = state.status === 'completed' && !!state.plan;
+  const latestAiMessage = [...state.messages].reverse().find((message) => message.role === 'ai')?.text ?? '';
 
   const handleStartSession = useCallback(async () => {
     setView('session');
@@ -197,18 +193,20 @@ export default function App() {
                   />
                 </div>
 
-                <ChatInterface
-                  messages={state.messages}
-                  status={state.status}
-                  plan={state.plan}
-                  isLoading={state.isLoading}
-                  onSend={send}
-                  voiceInput={pendingVoiceInput}
-                  onVoiceInputConsumed={handleVoiceInputConsumed}
-                  tts={tts}
-                  selectedVoiceId={selectedVoiceId}
-                  speechRate={speechRate}
-                />
+                <div className="surface-panel session-voice-output">
+                  <div className="session-voice-output-header">
+                    <h3>Voice output</h3>
+                    <button
+                      className="btn-primary"
+                      onClick={() => tts.speak(latestAiMessage, selectedVoiceId, speechRate)}
+                      disabled={!latestAiMessage || tts.isPlaying || state.isLoading}
+                      title="Play latest AI response"
+                    >
+                      {tts.isPlaying ? 'Playing...' : 'Play latest response'}
+                    </button>
+                  </div>
+                  <p>Use hold-to-talk for input. AI replies are delivered as audio.</p>
+                </div>
 
                 <VoiceControls
                   stt={stt}
