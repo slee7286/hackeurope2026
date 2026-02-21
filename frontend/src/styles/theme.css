@@ -378,8 +378,8 @@ input[type='text']:disabled {
   position: absolute;
   top: calc(50% + clamp(58px, 8vw, 90px));
   min-height: 1.5em;
-  width: min(152%, 760px);
-  max-width: calc(100vw - 64px);
+  width: min(200%, 980px);
+  max-width: calc(100vw - 28px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -663,8 +663,8 @@ input[type='text']:disabled {
 
   .speech-orb-caption {
     top: calc(50% + clamp(52px, 11vw, 80px));
-    width: min(96vw, 560px);
-    max-width: calc(100vw - 28px);
+    width: min(98vw, 640px);
+    max-width: calc(100vw - 18px);
   }
 
 }
