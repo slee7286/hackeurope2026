@@ -129,7 +129,7 @@ function TypingIndicator() {
           flexShrink: 0,
         }}
       >
-        🤖
+        AI
       </div>
       <div
         style={{
@@ -254,11 +254,11 @@ export function ChatInterface({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '18px',
+                  fontSize: 'var(--font-size-sm)',
                   flexShrink: 0,
                 }}
               >
-                🤖
+                AI
               </div>
             )}
 
@@ -296,7 +296,7 @@ export function ChatInterface({
                       lineHeight: 1,
                     }}
                   >
-                    ▶ Play reply again
+                    Play reply
                   </button>
                 </div>
               )}

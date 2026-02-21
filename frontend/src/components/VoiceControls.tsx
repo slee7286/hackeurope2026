@@ -38,7 +38,7 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
           marginRight: '2px',
         }}
       >
-        Voice:
+        Voice input:
       </span>
 
       {/* Speak / Stop button */}
@@ -50,15 +50,12 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
           style={{
             background: disabled ? 'var(--color-border)' : 'var(--color-primary)',
             color: '#fff',
-            fontSize: 'var(--font-size-lg)',
+            fontSize: 'var(--font-size-base)',
             padding: '0.55em 1.4em',
             borderRadius: 'var(--radius-sm)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
           }}
         >
-          🎤 Speak
+          Speak
         </button>
       ) : (
         <button
@@ -67,19 +64,16 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
           style={{
             background: 'var(--color-danger)',
             color: '#fff',
-            fontSize: 'var(--font-size-lg)',
+            fontSize: 'var(--font-size-base)',
             padding: '0.55em 1.4em',
             borderRadius: 'var(--radius-sm)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
           }}
         >
-          ⏹ Stop
+          Stop
         </button>
       )}
 
-      {/* Recording pulse + label */}
+      {/* Recording indicator */}
       {stt.isRecording && (
         <div
           style={{
@@ -88,33 +82,45 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
             gap: '8px',
             color: 'var(--color-danger)',
             fontWeight: 600,
+            fontSize: 'var(--font-size-sm)',
           }}
+          aria-live="assertive"
         >
           <span
             style={{
               display: 'inline-block',
-              width: 11,
-              height: 11,
+              width: 10,
+              height: 10,
               borderRadius: '50%',
               background: 'var(--color-danger)',
               animation: 'pulse 1s ease infinite',
             }}
+            aria-hidden="true"
           />
-          Listening…
+          Recording...
         </div>
       )}
 
       {/* Confirmation that transcript was received */}
       {stt.transcript && !stt.isRecording && (
-        <div style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>
-          ✓ Added to input — check and press Send
+        <div
+          style={{
+            color: 'var(--color-accent)',
+            fontSize: 'var(--font-size-sm)',
+            fontWeight: 600,
+          }}
+        >
+          Answer added to input. Review and press Send.
         </div>
       )}
 
       {/* Error */}
       {stt.error && (
-        <div style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)' }}>
-          ⚠ {stt.error}
+        <div
+          style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)' }}
+          role="alert"
+        >
+          {stt.error}
         </div>
       )}
 
@@ -127,7 +133,7 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
           whiteSpace: 'nowrap',
         }}
       >
-        Voice input: Google STT
+        Google Speech-to-Text
       </div>
     </div>
   );

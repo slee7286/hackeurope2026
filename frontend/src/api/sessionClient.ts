@@ -13,6 +13,8 @@ export type Mood = 'happy' | 'tired' | 'anxious' | 'motivated' | 'frustrated' | 
 export interface TherapyItem {
   prompt: string;
   answer: string;
+  /** picture_description only — 3 noun labels used to fetch Bing distractor images. */
+  distractors?: string[];
 }
 
 export interface TherapyBlock {
@@ -116,8 +118,58 @@ export async function sendMessage(
 export async function fetchPlan(sessionId: string): Promise<TherapySessionPlan> {
   const res = await fetch(`${BASE}/session/${sessionId}/plan`);
   if (res.status === 202) throw new Error('PENDING');
-  if (!res.ok) throw new Error(`Failed to fetch plan: ${res.status}`);
+  if (!res.ok) {
+    // Read the error detail from the response body so the UI can show it
+    const body = await res.json().catch(() => ({}));
+    const detail = (body as { detail?: string; error?: string }).detail
+      ?? (body as { error?: string }).error
+      ?? `HTTP ${res.status}`;
+    throw new Error(detail);
+  }
   const data = await res.json();
   // Backend wraps the plan in { plan: ... }
   return (data.plan ?? data) as TherapySessionPlan;
+}
+
+// ─── Picture Description image choices ────────────────────────────────────────
+
+export interface PictureChoice {
+  query: string;
+  url: string;
+  thumbnailUrl: string;
+  title: string;
+  isCorrect: boolean;
+}
+
+/**
+ * Fetch one image per label (correct + distractors) from the backend Bing proxy.
+ * Returns the choices shuffled so the correct image is not always first.
+ */
+export async function fetchPictureChoices(
+  correctQuery: string,
+  distractorQueries: string[]
+): Promise<PictureChoice[]> {
+  const allQueries = [correctQuery, ...distractorQueries];
+  const params = new URLSearchParams();
+  allQueries.forEach((q) => params.append('query', q));
+  const res = await fetch(`${BASE}/image-search?${params}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(
+      (body as { error?: string }).error ?? `Image search failed (${res.status})`
+    );
+  }
+  const data = await res.json() as {
+    results: Array<{ query: string; url: string; thumbnailUrl: string; title: string }>;
+  };
+  const images: PictureChoice[] = data.results.map((r) => ({
+    ...r,
+    isCorrect: r.query === correctQuery,
+  }));
+  // Fisher-Yates shuffle so the correct image is not always in position 0
+  for (let i = images.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [images[i], images[j]] = [images[j], images[i]];
+  }
+  return images;
 }

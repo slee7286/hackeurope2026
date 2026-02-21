@@ -18,6 +18,22 @@ interface RawPlanResponse {
   estimatedDurationMinutes: number;
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Extracts the first JSON object from a string, stripping any markdown
+ * code fences that the model may have added despite instructions.
+ */
+function extractJson(text: string): string {
+  // Strip ```json ... ``` or ``` ... ``` fences
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (fenced) return fenced[1].trim();
+  // Fall back to the first { ... } block in the string
+  const start = text.indexOf("{");
+  if (start !== -1) return text.slice(start);
+  return text.trim();
+}
+
 // ─── Main Generator ───────────────────────────────────────────────────────────
 
 /**
@@ -46,12 +62,15 @@ export async function generateSessionPlan(
   const rawText =
     response.content.find((b) => b.type === "text")?.text ?? "";
 
+  // Strip markdown code fences that models sometimes add despite instructions
+  const jsonText = extractJson(rawText);
+
   let parsed: RawPlanResponse;
   try {
-    parsed = JSON.parse(rawText) as RawPlanResponse;
+    parsed = JSON.parse(jsonText) as RawPlanResponse;
   } catch {
     throw new Error(
-      `Plan generator returned invalid JSON. Raw output: ${rawText.slice(0, 300)}`
+      `Plan generator returned invalid JSON. Raw output: ${rawText.slice(0, 400)}`
     );
   }
 

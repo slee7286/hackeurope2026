@@ -64,18 +64,17 @@ export function PatientHeader({ patientId }: PatientHeaderProps) {
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            background: '#fff8e1',
-            border: '1.5px solid #fbbf24',
+            background: 'var(--color-surface-alt)',
+            border: '1.5px solid var(--color-border)',
             borderRadius: 'var(--radius-sm)',
             padding: '6px 12px',
           }}
         >
-          <span style={{ fontSize: '22px' }}>🔥</span>
           <span
             style={{
               fontWeight: 700,
               fontSize: 'var(--font-size-lg)',
-              color: 'var(--color-warning)',
+              color: 'var(--color-primary)',
             }}
           >
             {summary.streakDays}
