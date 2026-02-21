@@ -27,7 +27,7 @@ frontend/node_modules/
 # -----------------------
 # Environment & Secrets
 # -----------------------.env.env.*.local
-*.env.local
+*.env
 
 # -----------------------
 # IDE / Editor
