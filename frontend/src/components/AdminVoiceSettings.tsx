@@ -42,13 +42,13 @@ const ABILITY_SPEED_PRESETS: Array<{
     level: 'balanced',
     label: 'Balanced',
     description: 'Standard practice pace for most users.',
-    speechRate: 0.8,
+    speechRate: 0.85,
   },
   {
     level: 'independent',
     label: 'More independent',
     description: 'Slightly faster pace for higher ability users.',
-    speechRate: 0.9,
+    speechRate: 1,
   },
 ];
 

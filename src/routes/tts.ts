@@ -26,6 +26,7 @@ interface TtsRequestBody {
   text?: string;
   voiceId?: string;
   voice_id?: string;
+  speechRate?: number;
 }
 
 interface CharacterAlignment {
@@ -213,7 +214,7 @@ ttsRouter.post(
 
 /**
  * POST /api/tts/with-timestamps
- * Body: { text: string; voiceId?: string; voice_id?: string }
+ * Body: { text: string; voiceId?: string; voice_id?: string; speechRate?: number }
  *
  * Returns:
  * {
@@ -242,6 +243,11 @@ ttsRouter.post(
 
       const targetVoiceId = resolveTargetVoiceId(body);
       const modelId = process.env.ELEVENLABS_MODEL_ID ?? "eleven_flash_v2_5";
+      const requestedSpeechRate =
+        typeof body.speechRate === "number" && Number.isFinite(body.speechRate)
+          ? body.speechRate
+          : 1;
+      const clampedSpeechRate = Math.min(1.2, Math.max(0.7, requestedSpeechRate));
 
       const elevenRes = await fetch(
         `https://api.elevenlabs.io/v1/text-to-speech/${targetVoiceId}/with-timestamps`,
@@ -258,6 +264,7 @@ ttsRouter.post(
             voice_settings: {
               stability: 0.75,
               similarity_boost: 0.75,
+              speed: clampedSpeechRate,
             },
           }),
         }
@@ -280,6 +287,7 @@ ttsRouter.post(
         audioBase64: payload.audio_base64,
         wordTimings,
         voiceId: targetVoiceId,
+        speechRate: clampedSpeechRate,
       });
     } catch (err) {
       next(err);

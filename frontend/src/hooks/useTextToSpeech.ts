@@ -56,12 +56,21 @@ function sanitizeWordTimings(value: unknown): SpokenWordTiming[] {
 
 function addPauseForWordPrompt(text: string): string {
   const normalized = text.trim();
-  const wordPromptMatch = normalized.match(/^say this word\s*:\s*(.+)$/i);
-  if (!wordPromptMatch) {
-    return text;
+  const patterns = [
+    /^say this word\s*:\s*(.+)$/i,
+    /^say\s*:\s*['"]?(.+?)['"]?$/i,
+    /^repeat this word\s*:\s*(.+)$/i,
+  ];
+
+  let targetWord = '';
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (match) {
+      targetWord = match[1].trim();
+      break;
+    }
   }
 
-  const targetWord = wordPromptMatch[1].trim();
   if (!targetWord) {
     return text;
   }
