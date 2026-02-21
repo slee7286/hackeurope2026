@@ -1,11 +1,16 @@
 import { useState, useRef, useCallback } from 'react';
 
+export interface StopRecordingOptions {
+  discard?: boolean;
+}
+
 export interface UseSpeechToTextResult {
   isRecording: boolean;
+  isTranscribing: boolean;
   transcript: string;
   error: string | null;
   startRecording: () => Promise<void>;
-  stopRecording: () => void;
+  stopRecording: (options?: StopRecordingOptions) => void;
   clearTranscript: () => void;
 }
 
@@ -26,15 +31,18 @@ export interface UseSpeechToTextResult {
  */
 export function useSpeechToText(): UseSpeechToTextResult {
   const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const discardOnStopRef = useRef(false);
 
   const startRecording = useCallback(async () => {
     setError(null);
     setTranscript('');
+    setIsTranscribing(false);
 
     // Request microphone permission
     let stream: MediaStream;
@@ -53,6 +61,7 @@ export function useSpeechToText(): UseSpeechToTextResult {
     const mediaRecorder = new MediaRecorder(stream, { mimeType });
     mediaRecorderRef.current = mediaRecorder;
     audioChunksRef.current = [];
+    discardOnStopRef.current = false;
 
     mediaRecorder.ondataavailable = (e) => {
       if (e.data.size > 0) audioChunksRef.current.push(e.data);
@@ -62,10 +71,17 @@ export function useSpeechToText(): UseSpeechToTextResult {
       // Release the microphone immediately
       stream.getTracks().forEach((t) => t.stop());
 
+      if (discardOnStopRef.current) {
+        discardOnStopRef.current = false;
+        audioChunksRef.current = [];
+        return;
+      }
+
       const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+      setIsTranscribing(true);
 
       try {
-        // Send raw audio to our backend proxy → Google Cloud STT
+        // Send raw audio to our backend proxy -> Google Cloud STT
         const res = await fetch('/api/stt', {
           method: 'POST',
           headers: { 'Content-Type': mimeType },
@@ -84,6 +100,8 @@ export function useSpeechToText(): UseSpeechToTextResult {
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Transcription failed.');
+      } finally {
+        setIsTranscribing(false);
       }
     };
 
@@ -91,16 +109,28 @@ export function useSpeechToText(): UseSpeechToTextResult {
     setIsRecording(true);
   }, []);
 
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  }, [isRecording]);
+  const stopRecording = useCallback(
+    (options?: StopRecordingOptions) => {
+      if (mediaRecorderRef.current && isRecording) {
+        discardOnStopRef.current = Boolean(options?.discard);
+        mediaRecorderRef.current.stop();
+        setIsRecording(false);
+      }
+    },
+    [isRecording]
+  );
 
   const clearTranscript = useCallback(() => {
     setTranscript('');
   }, []);
 
-  return { isRecording, transcript, error, startRecording, stopRecording, clearTranscript };
+  return {
+    isRecording,
+    isTranscribing,
+    transcript,
+    error,
+    startRecording,
+    stopRecording,
+    clearTranscript,
+  };
 }
