@@ -12,6 +12,8 @@ const BLOCK_TYPE_LABELS: Record<string, string> = {
   word_finding: 'Word Finding',
 };
 
+const MIN_HOLD_DURATION_MS = 150;
+
 interface GameTabProps {
   plan: TherapySessionPlan | null;
   onGoHome: () => void;
@@ -25,6 +27,8 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
   const [answer, setAnswer] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [showPromptText, setShowPromptText] = useState(false);
+  const [hasTranscript, setHasTranscript] = useState(false);
+  const [holdHint, setHoldHint] = useState<string | null>(null);
 
   // Picture description state
   const [imageChoices, setImageChoices] = useState<PictureChoice[]>([]);
@@ -40,16 +44,17 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
   const speakRef = useRef(tts.speak);
   speakRef.current = tts.speak;
 
-  // ── Plan loading ─────────────────────────────────────────────────────────────
+  // Tracks hold-to-talk start time to reject accidental short taps.
+  const holdStartTimeRef = useRef<number | null>(null);
 
+  // Plan loading
   useEffect(() => {
     if (plan) engine.loadPlan(plan);
     // engine.loadPlan is stable (empty useCallback deps)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plan]);
 
-  // ── Per-item reset ───────────────────────────────────────────────────────────
-
+  // Per-item reset
   // Clear the answer input, prompt visibility, and image state whenever a new item is shown.
   useEffect(() => {
     if (engine.status === 'presenting') {
@@ -57,11 +62,13 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
       setSubmitted(false);
       setShowPromptText(false);
       setImageChoices([]);
+      setHasTranscript(false);
+      setHoldHint(null);
+      holdStartTimeRef.current = null;
     }
   }, [engine.status, engine.blockIndex, engine.itemIndex]);
 
-  // ── Auto-play TTS ────────────────────────────────────────────────────────────
-
+  // Auto-play TTS
   // Speak the prompt once when a new item arrives.
   // Guard with a ref key to prevent double-firing on re-renders.
   useEffect(() => {
@@ -75,17 +82,17 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
     speakRef.current(item.prompt, selectedVoiceId);
   }, [engine.status, engine.blockIndex, engine.itemIndex, engine.plan, selectedVoiceId]);
 
-  // ── STT transcript → answer input ────────────────────────────────────────────
-
+  // STT transcript -> answer input
   useEffect(() => {
     if (stt.transcript) {
       setAnswer(stt.transcript);
+      setHasTranscript(true);
+      setHoldHint(null);
       stt.clearTranscript();
     }
   }, [stt.transcript, stt.clearTranscript]);
 
-  // ── Picture choices fetch ─────────────────────────────────────────────────────
-
+  // Picture choices fetch
   useEffect(() => {
     if (engine.status !== 'presenting' || !engine.plan) return;
     const block = engine.plan.therapyBlocks[engine.blockIndex];
@@ -118,8 +125,27 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
     };
   }, [engine.status, engine.blockIndex, engine.itemIndex, engine.plan]);
 
-  // ── Handlers ─────────────────────────────────────────────────────────────────
+  const handleRecordMouseDown = useCallback(async () => {
+    if (submitted || stt.isRecording || stt.isTranscribing) return;
+    setHoldHint(null);
+    holdStartTimeRef.current = Date.now();
+    await stt.startRecording();
+  }, [submitted, stt]);
 
+  const handleRecordMouseUp = useCallback(() => {
+    if (!stt.isRecording) return;
+
+    const heldMs = holdStartTimeRef.current ? Date.now() - holdStartTimeRef.current : 0;
+    holdStartTimeRef.current = null;
+    const isTooShort = heldMs < MIN_HOLD_DURATION_MS;
+
+    stt.stopRecording({ discard: isTooShort });
+    if (isTooShort) {
+      setHoldHint('Press and hold to talk.');
+    }
+  }, [stt]);
+
+  // Handlers
   const handlePlayPrompt = useCallback(() => {
     if (!engine.plan) return;
     const block = engine.plan.therapyBlocks[engine.blockIndex];
@@ -155,8 +181,7 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
     [submitted, engine, tts]
   );
 
-  // ── Idle ─────────────────────────────────────────────────────────────────────
-
+  // Idle
   if (engine.status === 'idle') {
     return (
       <div className="surface-panel fade-in game-empty">
@@ -172,8 +197,7 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
     );
   }
 
-  // ── Error ────────────────────────────────────────────────────────────────────
-
+  // Error
   if (engine.status === 'error') {
     return (
       <div className="surface-panel fade-in game-empty">
@@ -187,8 +211,7 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
     );
   }
 
-  // ── Loaded ───────────────────────────────────────────────────────────────────
-
+  // Loaded
   if (engine.status === 'loaded' && engine.plan) {
     const p = engine.plan;
     const totalItems = p.therapyBlocks.reduce((sum, b) => sum + b.items.length, 0);
@@ -225,8 +248,7 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
     );
   }
 
-  // ── Presenting ───────────────────────────────────────────────────────────────
-
+  // Presenting
   if (engine.status === 'presenting' && engine.plan) {
     const block = engine.plan.therapyBlocks[engine.blockIndex];
     const item = block?.items[engine.itemIndex];
@@ -243,7 +265,6 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
 
     return (
       <div className="surface-panel fade-in game-present">
-
         {/* Progress header */}
         <div className="game-progress-row">
           <span className="game-block-badge">
@@ -289,7 +310,7 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
           )}
         </div>
 
-        {/* Answer section — picture grid for picture_description, STT+text otherwise */}
+        {/* Answer section - picture grid for picture_description, STT+text otherwise */}
         {isPictureBlock ? (
           <div className="game-answer-section">
             <div className="game-section-label">Select the correct picture</div>
@@ -326,7 +347,7 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
             )}
 
             {!imagesLoading && !imagesError && imageChoices.length === 0 && (
-              // No distractors in plan or fetch returned empty — fall back to text
+              // No distractors in plan or fetch returned empty - fall back to text
               <div className="game-input-row">
                 <input
                   type="text"
@@ -373,33 +394,37 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
           <div className="game-answer-section">
             <div className="game-section-label">Your answer</div>
 
-            {/* Voice input controls */}
             <div className="game-stt-controls">
-              {!stt.isRecording ? (
-                <button
-                  className="btn-secondary game-record-btn"
-                  onClick={() => stt.startRecording()}
-                  disabled={controlsDisabled}
-                  aria-label="Start recording spoken answer"
-                >
-                  Record Answer
-                </button>
-              ) : (
-                <button
-                  className="btn-secondary game-record-btn game-record-btn--active"
-                  onClick={() => stt.stopRecording()}
-                  aria-label="Stop recording"
-                >
-                  Stop Recording
-                </button>
-              )}
+              <button
+                className={`btn-secondary game-record-btn${stt.isRecording ? ' game-record-btn--active' : ''}`}
+                onMouseDown={handleRecordMouseDown}
+                onMouseUp={handleRecordMouseUp}
+                onMouseLeave={handleRecordMouseUp}
+                disabled={controlsDisabled || stt.isTranscribing}
+                aria-label="Press and hold to record spoken answer"
+              >
+                {stt.isRecording ? 'Recording...' : stt.isTranscribing ? 'Transcribing...' : 'Hold to Talk'}
+              </button>
+
               {stt.isRecording && (
                 <span className="game-recording-indicator" aria-live="assertive">
                   <span className="game-recording-dot" aria-hidden="true" />
-                  Recording...
+                  Recording... release to stop.
+                </span>
+              )}
+
+              {stt.isTranscribing && (
+                <span className="game-recording-indicator" aria-live="polite">
+                  Transcribing...
                 </span>
               )}
             </div>
+
+            {holdHint && (
+              <div className="game-notice" role="status">
+                {holdHint}
+              </div>
+            )}
 
             {stt.error && (
               <div className="game-notice game-notice--error" role="alert">
@@ -407,27 +432,28 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
               </div>
             )}
 
-            {/* Text input fallback + submit */}
-            <div className="game-input-row">
-              <input
-                type="text"
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type or speak your answer"
-                disabled={submitted || stt.isRecording}
-                autoFocus
-                className="game-answer-input"
-                aria-label="Answer input"
-              />
-              <button
-                className="btn-primary"
-                onClick={handleSubmit}
-                disabled={!answer.trim() || submitted}
-              >
-                Submit
-              </button>
-            </div>
+            {hasTranscript && (
+              <div className="game-input-row">
+                <input
+                  type="text"
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Review your transcript"
+                  disabled={submitted || stt.isRecording || stt.isTranscribing}
+                  autoFocus
+                  className="game-answer-input"
+                  aria-label="Answer input"
+                />
+                <button
+                  className="btn-primary"
+                  onClick={handleSubmit}
+                  disabled={!answer.trim() || submitted || stt.isTranscribing}
+                >
+                  Confirm
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -438,8 +464,7 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
     );
   }
 
-  // ── Feedback ─────────────────────────────────────────────────────────────────
-
+  // Feedback
   if (engine.status === 'showingFeedback' && engine.feedback) {
     const { isCorrect, expected, submitted: sub } = engine.feedback;
     return (
@@ -478,8 +503,7 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
     );
   }
 
-  // ── Ended ────────────────────────────────────────────────────────────────────
-
+  // Ended
   if (engine.status === 'ended') {
     const { correct, total } = engine.score;
     const pct = total > 0 ? Math.round((correct / total) * 100) : 0;

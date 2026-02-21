@@ -163,6 +163,7 @@ export function ChatInterface({
   selectedVoiceId,
 }: ChatInterfaceProps) {
   const [inputText, setInputText] = useState('');
+  const [hasVoiceDraft, setHasVoiceDraft] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -172,6 +173,7 @@ export function ChatInterface({
   useEffect(() => {
     if (voiceInput) {
       setInputText(voiceInput);
+      setHasVoiceDraft(true);
       onVoiceInputConsumed();
     }
   }, [voiceInput, onVoiceInputConsumed]);
@@ -180,6 +182,7 @@ export function ChatInterface({
     const trimmed = inputText.trim();
     if (!trimmed || isLoading) return;
     setInputText('');
+    setHasVoiceDraft(false);
     onSend(trimmed);
   };
 
@@ -303,34 +306,50 @@ export function ChatInterface({
           background: 'var(--color-surface)',
         }}
       >
-        <input
-          type="text"
-          value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={
-            status === 'completed'
-              ? 'Session complete.'
-              : status === 'idle' || status === 'starting'
-                ? 'Start a session first...'
-                : 'Type your answer...'
-          }
-          disabled={inputDisabled}
-          style={{ flex: 1 }}
-          aria-label="Message input"
-        />
-        <button
-          onClick={handleSend}
-          disabled={!inputText.trim() || inputDisabled}
-          style={{
-            background: 'var(--color-primary)',
-            color: '#fff',
-            padding: '0.6em 1.5em',
-            borderRadius: 'var(--radius-sm)',
-          }}
-        >
-          Send
-        </button>
+        {hasVoiceDraft ? (
+          <>
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={
+                status === 'completed'
+                  ? 'Session complete.'
+                  : status === 'idle' || status === 'starting'
+                    ? 'Start a session first...'
+                    : 'Review your transcript'
+              }
+              disabled={inputDisabled}
+              style={{ flex: 1 }}
+              aria-label="Message input"
+            />
+            <button
+              onClick={handleSend}
+              disabled={!inputText.trim() || inputDisabled}
+              style={{
+                background: 'var(--color-primary)',
+                color: '#fff',
+                padding: '0.6em 1.5em',
+                borderRadius: 'var(--radius-sm)',
+              }}
+            >
+              Confirm
+            </button>
+          </>
+        ) : (
+          <div
+            style={{
+              color: 'var(--color-text-muted)',
+              fontSize: 'var(--font-size-sm)',
+              fontWeight: 600,
+              padding: '8px 2px',
+            }}
+            role="status"
+          >
+            Press and hold to talk.
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { UseSpeechToTextResult } from '../hooks/useSpeechToText';
 
 interface VoiceControlsProps {
@@ -8,13 +8,39 @@ interface VoiceControlsProps {
   disabled: boolean;
 }
 
+const MIN_HOLD_DURATION_MS = 150;
+
 export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControlsProps) {
+  const [holdHint, setHoldHint] = useState<string | null>(null);
+  const holdStartTimeRef = useRef<number | null>(null);
+
   // Forward transcript to parent (ChatInterface input) when it arrives
   useEffect(() => {
     if (stt.transcript) {
+      setHoldHint(null);
       onTranscriptReady(stt.transcript);
     }
   }, [stt.transcript, onTranscriptReady]);
+
+  const handleRecordMouseDown = useCallback(async () => {
+    if (disabled || stt.isRecording || stt.isTranscribing) return;
+    setHoldHint(null);
+    holdStartTimeRef.current = Date.now();
+    await stt.startRecording();
+  }, [disabled, stt]);
+
+  const handleRecordMouseUp = useCallback(() => {
+    if (!stt.isRecording) return;
+
+    const heldMs = holdStartTimeRef.current ? Date.now() - holdStartTimeRef.current : 0;
+    holdStartTimeRef.current = null;
+    const isTooShort = heldMs < MIN_HOLD_DURATION_MS;
+
+    stt.stopRecording({ discard: isTooShort });
+    if (isTooShort) {
+      setHoldHint('Press and hold to talk.');
+    }
+  }, [stt]);
 
   return (
     <div
@@ -41,38 +67,27 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
       >
         Voice input:
       </span>
-
-      {/* Speak / Stop button */}
-      {!stt.isRecording ? (
-        <button
-          onClick={() => stt.startRecording()}
-          disabled={disabled}
-          aria-label="Start speaking"
-          style={{
-            background: disabled ? 'var(--color-border)' : 'var(--color-primary)',
-            color: '#fff',
-            fontSize: 'var(--font-size-base)',
-            padding: '0.55em 1.4em',
-            borderRadius: 'var(--radius-sm)',
-          }}
-        >
-          Speak
-        </button>
-      ) : (
-        <button
-          onClick={() => stt.stopRecording()}
-          aria-label="Stop recording"
-          style={{
-            background: 'var(--color-danger)',
-            color: '#fff',
-            fontSize: 'var(--font-size-base)',
-            padding: '0.55em 1.4em',
-            borderRadius: 'var(--radius-sm)',
-          }}
-        >
-          Stop
-        </button>
-      )}
+      <button
+        onMouseDown={handleRecordMouseDown}
+        onMouseUp={handleRecordMouseUp}
+        onMouseLeave={handleRecordMouseUp}
+        disabled={disabled || stt.isTranscribing}
+        aria-label="Press and hold to record counselling response"
+        style={{
+          background:
+            disabled || stt.isTranscribing
+              ? 'var(--color-border)'
+              : stt.isRecording
+                ? 'var(--color-danger)'
+                : 'var(--color-primary)',
+          color: '#fff',
+          fontSize: 'var(--font-size-base)',
+          padding: '0.55em 1.4em',
+          borderRadius: 'var(--radius-sm)',
+        }}
+      >
+        {stt.isRecording ? 'Recording...' : stt.isTranscribing ? 'Transcribing...' : 'Hold to Talk'}
+      </button>
 
       {/* Recording indicator */}
       {stt.isRecording && (
@@ -98,7 +113,33 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
             }}
             aria-hidden="true"
           />
-          Recording...
+          Recording... release to stop.
+        </div>
+      )}
+
+      {stt.isTranscribing && (
+        <div
+          style={{
+            color: 'var(--color-text-muted)',
+            fontSize: 'var(--font-size-sm)',
+            fontWeight: 600,
+          }}
+          aria-live="polite"
+        >
+          Transcribing...
+        </div>
+      )}
+
+      {holdHint && (
+        <div
+          style={{
+            color: 'var(--color-text-muted)',
+            fontSize: 'var(--font-size-sm)',
+            fontWeight: 600,
+          }}
+          role="status"
+        >
+          {holdHint}
         </div>
       )}
 
