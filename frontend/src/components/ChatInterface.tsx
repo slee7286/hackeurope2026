@@ -14,6 +14,7 @@ interface ChatInterfaceProps {
   onVoiceInputConsumed: () => void;
   tts: UseTextToSpeechResult;
   selectedVoiceId: string;
+  speechRate: number;
 }
 
 function StatusBadge({ status }: { status: FullStatus }) {
@@ -78,8 +79,7 @@ function PlanSummary({ plan }: { plan: TherapySessionPlan }) {
           marginBottom: '10px',
         }}
       >
-        {plan.sessionMetadata.estimatedDurationMinutes} min | {plan.therapyBlocks.length} exercises | Difficulty:{' '}
-        {plan.patientProfile.difficulty}
+        {plan.sessionMetadata.estimatedDurationMinutes} min | {plan.therapyBlocks.length} exercises
       </div>
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
         {topics.map((topic) => (
@@ -161,6 +161,7 @@ export function ChatInterface({
   onVoiceInputConsumed,
   tts,
   selectedVoiceId,
+  speechRate,
 }: ChatInterfaceProps) {
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -265,7 +266,7 @@ export function ChatInterface({
               {msg.role === 'ai' && (
                 <div style={{ marginTop: '8px' }}>
                   <button
-                    onClick={() => tts.speak(msg.text, selectedVoiceId)}
+                    onClick={() => tts.speak(msg.text, selectedVoiceId, speechRate)}
                     disabled={tts.isPlaying}
                     title="Play reply again"
                     style={{

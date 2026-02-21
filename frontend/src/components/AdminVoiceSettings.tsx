@@ -20,14 +20,65 @@ interface VoicesPayload {
 
 interface AdminVoiceSettingsProps {
   currentVoiceId: string;
-  onApply: (voiceId: string) => void;
+  currentSpeechRate: number;
+  onApply: (voiceId: string, speechRate: number) => void;
 }
 
-export function AdminVoiceSettings({ currentVoiceId, onApply }: AdminVoiceSettingsProps) {
+type AbilityLevel = 'needs_support' | 'balanced' | 'independent';
+
+const ABILITY_SPEED_PRESETS: Array<{
+  level: AbilityLevel;
+  label: string;
+  description: string;
+  speechRate: number;
+}> = [
+  {
+    level: 'needs_support',
+    label: 'Needs more support',
+    description: 'Slower speech for easier following and repetition.',
+    speechRate: 0.7,
+  },
+  {
+    level: 'balanced',
+    label: 'Balanced',
+    description: 'Standard practice pace for most users.',
+    speechRate: 0.8,
+  },
+  {
+    level: 'independent',
+    label: 'More independent',
+    description: 'Slightly faster pace for higher ability users.',
+    speechRate: 0.9,
+  },
+];
+
+function getClosestAbilityLevel(speechRate: number): AbilityLevel {
+  let closest = ABILITY_SPEED_PRESETS[0];
+  let minDistance = Math.abs(speechRate - closest.speechRate);
+
+  for (const preset of ABILITY_SPEED_PRESETS.slice(1)) {
+    const distance = Math.abs(speechRate - preset.speechRate);
+    if (distance < minDistance) {
+      closest = preset;
+      minDistance = distance;
+    }
+  }
+
+  return closest.level;
+}
+
+export function AdminVoiceSettings({ currentVoiceId, currentSpeechRate, onApply }: AdminVoiceSettingsProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [payload, setPayload] = useState<VoicesPayload | null>(null);
   const [dialect, setDialect] = useState('');
+  const [abilityLevel, setAbilityLevel] = useState<AbilityLevel>(
+    getClosestAbilityLevel(currentSpeechRate),
+  );
+
+  useEffect(() => {
+    setAbilityLevel(getClosestAbilityLevel(currentSpeechRate));
+  }, [currentSpeechRate]);
 
   useEffect(() => {
     let alive = true;
@@ -83,6 +134,13 @@ export function AdminVoiceSettings({ currentVoiceId, onApply }: AdminVoiceSettin
     return dialectOptions.find((voice) => voice.dialect === dialect) ?? null;
   }, [dialectOptions, dialect]);
 
+  const selectedAbilityPreset = useMemo(() => {
+    return (
+      ABILITY_SPEED_PRESETS.find((preset) => preset.level === abilityLevel) ??
+      ABILITY_SPEED_PRESETS[1]
+    );
+  }, [abilityLevel]);
+
   const onDialectChange = (nextDialect: string) => {
     setDialect(nextDialect);
   };
@@ -93,7 +151,7 @@ export function AdminVoiceSettings({ currentVoiceId, onApply }: AdminVoiceSettin
       <h2 className="panel-title">Admin voice settings</h2>
       <p className="panel-copy">
         Choose a language and dialect from the configured ElevenLabs list. The selected voice ID will be used for
-        conversation TTS.
+        conversation TTS. Use ability level to slightly adjust speaking speed.
       </p>
 
       {loading && <div className="session-loading">Loading voice options...</div>}
@@ -117,28 +175,29 @@ export function AdminVoiceSettings({ currentVoiceId, onApply }: AdminVoiceSettin
             </select>
           </label>
 
-          <div className="admin-field">
-            <span>Language</span>
-            <div className="admin-readonly">{selectedEntry?.language ?? 'N/A'}</div>
-          </div>
-
-          <div className="admin-field">
-            <span>Description</span>
-            <div className="admin-readonly">{selectedEntry?.accent_description ?? 'N/A'}</div>
-          </div>
-
-          <div className="admin-field">
-            <span>Voice ID</span>
-            <div className="admin-readonly">{selectedEntry?.voice_id ?? 'N/A'}</div>
-          </div>
+          <label className="admin-field">
+            <span>User ability</span>
+            <select
+              value={abilityLevel}
+              onChange={(event) => setAbilityLevel(event.target.value as AbilityLevel)}
+            >
+              {ABILITY_SPEED_PRESETS.map((preset) => (
+                <option key={preset.level} value={preset.level}>
+                  {preset.label}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <div className="admin-actions">
             <button
               className="btn-primary"
-              onClick={() => selectedEntry && onApply(selectedEntry.voice_id.trim())}
+              onClick={() =>
+                selectedEntry && onApply(selectedEntry.voice_id.trim(), selectedAbilityPreset.speechRate)
+              }
               disabled={applyDisabled}
             >
-              Apply voice
+              Apply settings
             </button>
           </div>
         </div>

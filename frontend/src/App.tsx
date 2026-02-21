@@ -11,7 +11,9 @@ import { useSpeechToText } from './hooks/useSpeechToText';
 import { useTextToSpeech } from './hooks/useTextToSpeech';
 
 const DEFAULT_VOICE_ID = 'fVVjLtJgnQI61CoImgHU';
+const DEFAULT_SPEECH_RATE = 0.8;
 const VOICE_STORAGE_KEY = 'therapy.selected_voice_id';
+const SPEECH_RATE_STORAGE_KEY = 'therapy.speech_rate';
 
 type View = 'home' | 'session' | 'history' | 'admin' | 'game';
 
@@ -20,6 +22,14 @@ export default function App() {
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>(
     () => localStorage.getItem(VOICE_STORAGE_KEY) ?? DEFAULT_VOICE_ID
   );
+  const [speechRate, setSpeechRate] = useState<number>(() => {
+    const stored = localStorage.getItem(SPEECH_RATE_STORAGE_KEY);
+    const parsed = stored ? Number(stored) : NaN;
+    if (Number.isFinite(parsed) && parsed >= 0.7 && parsed <= 1.2) {
+      return parsed;
+    }
+    return DEFAULT_SPEECH_RATE;
+  });
 
   const { state, start, send } = useSession();
   const stt = useSpeechToText();
@@ -39,9 +49,11 @@ export default function App() {
     setPendingVoiceInput('');
   }, []);
 
-  const handleApplyVoice = useCallback((nextVoiceId: string) => {
+  const handleApplyVoice = useCallback((nextVoiceId: string, nextSpeechRate: number) => {
     setSelectedVoiceId(nextVoiceId);
+    setSpeechRate(nextSpeechRate);
     localStorage.setItem(VOICE_STORAGE_KEY, nextVoiceId);
+    localStorage.setItem(SPEECH_RATE_STORAGE_KEY, String(nextSpeechRate));
     setView('home');
   }, []);
 
@@ -83,11 +95,17 @@ export default function App() {
               </svg>
             </button>
           </div>
-          <p className="voice-chip">Current voice ID: {selectedVoiceId}</p>
+          <p className="voice-chip">Current voice ID: {selectedVoiceId} | Speed: {speechRate.toFixed(2)}x</p>
         </section>
       )}
 
-      {view === 'admin' && <AdminVoiceSettings currentVoiceId={selectedVoiceId} onApply={handleApplyVoice} />}
+      {view === 'admin' && (
+        <AdminVoiceSettings
+          currentVoiceId={selectedVoiceId}
+          currentSpeechRate={speechRate}
+          onApply={handleApplyVoice}
+        />
+      )}
 
       {view === 'history' && (
         <section className="fade-in">
@@ -158,6 +176,7 @@ export default function App() {
                   onVoiceInputConsumed={handleVoiceInputConsumed}
                   tts={tts}
                   selectedVoiceId={selectedVoiceId}
+                  speechRate={speechRate}
                 />
 
                 <VoiceControls
@@ -187,6 +206,7 @@ export default function App() {
             tts={tts}
             stt={stt}
             selectedVoiceId={selectedVoiceId}
+            speechRate={speechRate}
           />
         </section>
       )}

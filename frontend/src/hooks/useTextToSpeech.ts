@@ -3,8 +3,23 @@ import { useState, useRef, useCallback } from 'react';
 export interface UseTextToSpeechResult {
   isPlaying: boolean;
   error: string | null;
-  speak: (text: string, voiceId: string) => Promise<void>;
+  speak: (text: string, voiceId: string, speechRate?: number) => Promise<void>;
   stop: () => void;
+}
+
+function addPauseForWordPrompt(text: string): string {
+  const normalized = text.trim();
+  const wordPromptMatch = normalized.match(/^say this word\s*:\s*(.+)$/i);
+  if (!wordPromptMatch) {
+    return text;
+  }
+
+  const targetWord = wordPromptMatch[1].trim();
+  if (!targetWord) {
+    return text;
+  }
+
+  return `Say this word... ${targetWord}`;
 }
 
 /**
@@ -40,16 +55,17 @@ export function useTextToSpeech(): UseTextToSpeechResult {
   }, []);
 
   const speak = useCallback(
-    async (text: string, voiceId: string) => {
+    async (text: string, voiceId: string, speechRate = 0.8) => {
       stop(); // Cancel any currently playing audio
       setError(null);
+      const textForTts = addPauseForWordPrompt(text);
 
       try {
         // Call our backend proxy; never expose the API key to the browser
         const res = await fetch('/api/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text, voiceId }),
+          body: JSON.stringify({ text: textForTts, voiceId, speechRate }),
         });
 
         if (!res.ok) {

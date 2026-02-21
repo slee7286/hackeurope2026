@@ -11,6 +11,7 @@ const BLOCK_TYPE_LABELS: Record<string, string> = {
   picture_description: 'Picture Description',
   word_finding: 'Word Finding',
 };
+const PRACTICE_RATE_FACTOR = 0.9;
 
 interface GameTabProps {
   plan: TherapySessionPlan | null;
@@ -18,10 +19,12 @@ interface GameTabProps {
   tts: UseTextToSpeechResult;
   stt: UseSpeechToTextResult;
   selectedVoiceId: string;
+  speechRate: number;
 }
 
-export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabProps) {
+export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId, speechRate }: GameTabProps) {
   const engine = useTherapyEngine();
+  const practiceSpeechRate = Math.max(0.7, Math.min(1.2, speechRate * PRACTICE_RATE_FACTOR));
   const [answer, setAnswer] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [showPromptText, setShowPromptText] = useState(false);
@@ -72,8 +75,8 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
     const item = block?.items[engine.itemIndex];
     if (!item) return;
     lastAutoPlayedRef.current = key;
-    speakRef.current(item.prompt, selectedVoiceId);
-  }, [engine.status, engine.blockIndex, engine.itemIndex, engine.plan, selectedVoiceId]);
+    speakRef.current(item.prompt, selectedVoiceId, practiceSpeechRate);
+  }, [engine.status, engine.blockIndex, engine.itemIndex, engine.plan, selectedVoiceId, practiceSpeechRate]);
 
   // ── STT transcript → answer input ────────────────────────────────────────────
 
@@ -124,8 +127,8 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
     if (!engine.plan) return;
     const block = engine.plan.therapyBlocks[engine.blockIndex];
     const item = block?.items[engine.itemIndex];
-    if (item) tts.speak(item.prompt, selectedVoiceId);
-  }, [engine.plan, engine.blockIndex, engine.itemIndex, tts, selectedVoiceId]);
+    if (item) tts.speak(item.prompt, selectedVoiceId, practiceSpeechRate);
+  }, [engine.plan, engine.blockIndex, engine.itemIndex, tts, selectedVoiceId, practiceSpeechRate]);
 
   const handleSubmit = useCallback(() => {
     if (!answer.trim() || submitted) return;
@@ -199,8 +202,6 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
           <span>{p.therapyBlocks.length} exercises</span>
           <span aria-hidden="true">·</span>
           <span>{totalItems} prompts</span>
-          <span aria-hidden="true">·</span>
-          <span>Difficulty: {p.patientProfile.difficulty}</span>
           <span aria-hidden="true">·</span>
           <span>~{p.sessionMetadata.estimatedDurationMinutes} min</span>
         </div>
