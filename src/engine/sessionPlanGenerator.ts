@@ -5,13 +5,11 @@ import type {
   FinalizeSessionArgs,
   TherapySessionPlan,
   TherapyBlock,
-  Difficulty,
 } from "../types";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
-const DEFAULT_PLAN_DIFFICULTY: Difficulty = "medium";
 
 // ─── Internal type for raw Claude JSON response ───────────────────────────────
 
@@ -84,7 +82,7 @@ export async function generateSessionPlan(
     patientProfile: {
       mood: args.mood,
       interests: args.interests,
-      difficulty: DEFAULT_PLAN_DIFFICULTY,
+      difficulty: args.difficulty,
       notes: args.notes,
     },
     sessionMetadata: {
@@ -112,13 +110,13 @@ function buildPlanPrompt(args: FinalizeSessionArgs): string {
 Patient profile:
 - Mood today: ${args.mood}
 - Interests: ${args.interests.join(", ")}
+- Chosen difficulty: ${args.difficulty}
 - Clinical notes: ${args.notes}
 - Target session duration: ${args.estimatedDurationMinutes} minutes
 
 Generate a therapy session plan for this patient.
 Use their interests as topics.
-Use medium-level tasks throughout.
-Set every block "difficulty" to "medium".
+Match the difficulty level throughout.
 Return valid JSON only.
 `.trim();
 }

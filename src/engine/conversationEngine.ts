@@ -22,7 +22,7 @@ import type { ConversationMessage, FinalizeSessionArgs, SessionState } from "../
 const FINALIZE_SESSION_TOOL: Tool = {
   name: "finalize_session",
   description:
-    "Call this when you have learned the patient's mood and at least one interest. This ends the check-in and generates the therapy plan.",
+    "Call this when you have learned the patient's mood, at least one interest, and difficulty preference. This ends the check-in and generates the therapy plan.",
   input_schema: {
     type: "object" as const,
     properties: {
@@ -38,6 +38,11 @@ const FINALIZE_SESSION_TOOL: Tool = {
           "Topics the patient enjoys. Examples: family, cooking, sports, music, nature, travel.",
         minItems: 1,
       },
+      difficulty: {
+        type: "string",
+        enum: ["easy", "medium", "hard"],
+        description: "The practice difficulty the patient chose.",
+      },
       notes: {
         type: "string",
         description:
@@ -51,6 +56,7 @@ const FINALIZE_SESSION_TOOL: Tool = {
     required: [
       "mood",
       "interests",
+      "difficulty",
       "notes",
       "estimatedDurationMinutes",
     ],

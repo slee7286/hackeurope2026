@@ -5,8 +5,7 @@ import { sessionRouter } from "./routes/session";
 import { ttsRouter } from "./routes/tts";
 import { sttRouter } from "./routes/stt";
 import { imageSearchRouter } from "./routes/imageSearch";
-
-// ─── Env Validation ───────────────────────────────────────────────────────────
+import { pictureImagesRouter } from "./routes/pictureImages";
 
 if (!process.env.ANTHROPIC_API_KEY) {
   console.error("FATAL: ANTHROPIC_API_KEY environment variable is not set.");
@@ -16,8 +15,6 @@ if (!process.env.ANTHROPIC_API_KEY) {
 
 const PORT = parseInt(process.env.PORT ?? "3001", 10);
 const CORS_ORIGIN = process.env.CORS_ORIGIN ?? "http://localhost:3000";
-
-// ─── App Setup ────────────────────────────────────────────────────────────────
 
 const app = express();
 
@@ -31,27 +28,19 @@ app.use(
 
 app.use(express.json({ limit: "10kb" }));
 
-// ─── Routes ───────────────────────────────────────────────────────────────────
-
 app.use("/api/session", sessionRouter);
 app.use("/api/tts", ttsRouter);
-// STT needs raw binary body — apply express.raw() before sttRouter.
-// express.json() (above) only parses application/json, so audio/* passes through untouched.
 app.use("/api/stt", express.raw({ type: "*/*", limit: "10mb" }), sttRouter);
 app.use("/api/image-search", imageSearchRouter);
+app.use("/api/picture-images", pictureImagesRouter);
 
-// Health check
 app.get("/health", (_req: Request, res: Response) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// ─── 404 Handler ─────────────────────────────────────────────────────────────
-
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: "Route not found." });
 });
-
-// ─── Global Error Handler ─────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
@@ -70,8 +59,6 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     detail: process.env.NODE_ENV === "development" ? err.message : undefined,
   });
 });
-
-// ─── Start ────────────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {
   console.log(`Therapy backend running on http://localhost:${PORT}`);

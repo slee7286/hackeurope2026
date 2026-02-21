@@ -1,5 +1,3 @@
-// ─── Therapy Block Types ──────────────────────────────────────────────────────
-
 export type BlockType =
   | "word_repetition"
   | "sentence_completion"
@@ -19,11 +17,7 @@ export type Mood =
 export interface TherapyItem {
   prompt: string;
   answer: string;
-  /**
-   * Only present on picture_description items.
-   * 3 alternative noun labels used to fetch distractor images via Bing Image Search.
-   * Example: if answer is "cat", distractors might be ["dog", "bird", "fish"].
-   */
+  // Optional alternative labels that can help image retrieval for picture_description.
   distractors?: string[];
 }
 
@@ -36,8 +30,6 @@ export interface TherapyBlock {
   items: TherapyItem[];
 }
 
-// ─── Session Plan ─────────────────────────────────────────────────────────────
-
 export interface PatientProfile {
   mood: Mood;
   interests: string[];
@@ -47,7 +39,7 @@ export interface PatientProfile {
 
 export interface SessionMetadata {
   sessionId: string;
-  createdAt: string; // ISO 8601
+  createdAt: string;
   estimatedDurationMinutes: number;
 }
 
@@ -57,8 +49,6 @@ export interface TherapySessionPlan {
   therapyBlocks: TherapyBlock[];
 }
 
-// ─── Conversation State ───────────────────────────────────────────────────────
-
 export type MessageRole = "user" | "assistant";
 
 export interface ConversationMessage {
@@ -66,11 +56,7 @@ export interface ConversationMessage {
   content: string;
 }
 
-export type SessionStatus =
-  | "active"      // check-in conversation in progress
-  | "finalizing"  // finalize_session tool was called, plan generation running
-  | "complete"    // TherapySessionPlan is ready
-  | "error";      // unrecoverable error
+export type SessionStatus = "active" | "finalizing" | "complete" | "error";
 
 export interface SessionState {
   sessionId: string;
@@ -80,8 +66,6 @@ export interface SessionState {
   plan: TherapySessionPlan | null;
   error: string | null;
 }
-
-// ─── API Request / Response Shapes ───────────────────────────────────────────
 
 export interface StartSessionResponse {
   sessionId: string;
@@ -103,12 +87,10 @@ export interface GetPlanResponse {
   plan: TherapySessionPlan;
 }
 
-// ─── Tool Use ─────────────────────────────────────────────────────────────────
-
-/** Shape of the arguments Claude supplies when calling finalize_session */
 export interface FinalizeSessionArgs {
   mood: Mood;
   interests: string[];
+  difficulty: Difficulty;
   notes: string;
   estimatedDurationMinutes: number;
 }
