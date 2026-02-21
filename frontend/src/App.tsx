@@ -6,12 +6,14 @@ import { VoiceControls } from './components/VoiceControls';
 import { SessionHistory } from './components/SessionHistory';
 import { AdminVoiceSettings } from './components/AdminVoiceSettings';
 import { GameTab } from './components/GameTab';
+import { SpeechIndicatorOrb } from './components/SpeechIndicatorOrb';
 import { useSession } from './hooks/useSession';
 import { useSpeechToText } from './hooks/useSpeechToText';
 import { useTextToSpeech } from './hooks/useTextToSpeech';
 
 const DEFAULT_VOICE_ID = 'fVVjLtJgnQI61CoImgHU';
 const VOICE_STORAGE_KEY = 'therapy.selected_voice_id';
+const CAPTIONS_STORAGE_KEY = 'therapy.captions_enabled';
 
 type View = 'home' | 'session' | 'history' | 'admin' | 'game';
 
@@ -19,6 +21,9 @@ export default function App() {
   const [view, setView] = useState<View>('home');
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>(
     () => localStorage.getItem(VOICE_STORAGE_KEY) ?? DEFAULT_VOICE_ID
+  );
+  const [captionsEnabled, setCaptionsEnabled] = useState<boolean>(
+    () => localStorage.getItem(CAPTIONS_STORAGE_KEY) !== '0'
   );
 
   const { state, start, send } = useSession();
@@ -43,6 +48,11 @@ export default function App() {
     setSelectedVoiceId(nextVoiceId);
     localStorage.setItem(VOICE_STORAGE_KEY, nextVoiceId);
     setView('home');
+  }, []);
+
+  const handleCaptionsToggle = useCallback((enabled: boolean) => {
+    setCaptionsEnabled(enabled);
+    localStorage.setItem(CAPTIONS_STORAGE_KEY, enabled ? '1' : '0');
   }, []);
 
   const sessionActive = state.status !== 'idle' && state.status !== 'starting';
@@ -148,6 +158,29 @@ export default function App() {
 
             {sessionActive && (
               <>
+                <div className="session-captions-toggle-row">
+                  <label className="caption-toggle" htmlFor="caption-toggle-input">
+                    <span className="caption-toggle-label">Captions</span>
+                    <input
+                      id="caption-toggle-input"
+                      type="checkbox"
+                      checked={captionsEnabled}
+                      onChange={(e) => handleCaptionsToggle(e.target.checked)}
+                    />
+                    <span className="caption-toggle-slider" aria-hidden="true" />
+                  </label>
+                </div>
+
+                <div className="session-orb-container">
+                  <SpeechIndicatorOrb
+                    audioElement={tts.currentAudio}
+                    isPlaying={tts.isPlaying}
+                    spokenText={tts.currentText}
+                    wordTimings={tts.currentWordTimings}
+                    captionsEnabled={captionsEnabled}
+                  />
+                </div>
+
                 <ChatInterface
                   messages={state.messages}
                   status={state.status}
