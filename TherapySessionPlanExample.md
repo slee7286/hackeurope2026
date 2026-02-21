@@ -1,0 +1,74 @@
+{
+  "patientProfile": {
+    "mood": "tired",
+    "interests": ["family", "cooking"],
+    "difficulty": "easy",
+    "notes": "responds well to yes/no questions and short prompts, prefers simple word choices"
+  },
+  "sessionMetadata": {
+    "sessionId": "3f7a1c2e-84b9-4d6f-a3e1-9c0d5f2b8e47",
+    "createdAt": "2026-02-21T13:45:00.000Z",
+    "estimatedDurationMinutes": 15
+  },
+  "therapyBlocks": [
+    {
+      "blockId": "block-1",
+      "type": "word_repetition",
+      "topic": "family",
+      "difficulty": "easy",
+      "description": "Repeat simple family words aloud",
+      "items": [
+        { "prompt": "Say: 'mom'", "answer": "mom" },
+        { "prompt": "Say: 'dad'", "answer": "dad" },
+        { "prompt": "Say: 'son'", "answer": "son" },
+        { "prompt": "Say: 'daughter'", "answer": "daughter" },
+        { "prompt": "Say: 'home'", "answer": "home" }
+      ]
+    },
+    {
+      "blockId": "block-2",
+      "type": "word_finding",
+      "topic": "family",
+      "difficulty": "easy",
+      "description": "Name the family member shown",
+      "items": [
+        { "prompt": "Your mother's husband is your ____", "answer": "dad" },
+        { "prompt": "Your dad's mom is your ____", "answer": "grandma" },
+        { "prompt": "Your brother's child is your ____", "answer": "nephew" }
+      ]
+    },
+    {
+      "blockId": "block-3",
+      "type": "word_repetition",
+      "topic": "cooking",
+      "difficulty": "easy",
+      "description": "Repeat simple kitchen words aloud",
+      "items": [
+        { "prompt": "Say: 'pan'", "answer": "pan" },
+        { "prompt": "Say: 'spoon'", "answer": "spoon" },
+        { "prompt": "Say: 'bowl'", "answer": "bowl" },
+        { "prompt": "Say: 'cook'", "answer": "cook" }
+      ]
+    },
+    {
+      "blockId": "block-4",
+      "type": "sentence_completion",
+      "topic": "cooking",
+      "difficulty": "easy",
+      "description": "Finish simple cooking sentences",
+      "items": [
+        { "prompt": "I cook eggs in a frying ____", "answer": "pan" },
+        { "prompt": "I drink water from a ____", "answer": "cup" },
+        { "prompt": "I cut food with a ____", "answer": "knife" },
+        { "prompt": "I bake bread in the ____", "answer": "oven" }
+      ]
+    }
+  ]
+}
+
+[//]: # Key fields to note for your teammate:
+[//]: # therapyBlocks[].type — one of "word_repetition", "sentence_completion", "picture_description", "word_finding"
+[//]: # therapyBlocks[].items[].prompt — what to display/speak to the patient
+[//]: # therapyBlocks[].items[].answer — the expected correct response (for scoring/feedback)
+[//]: # therapyBlocks[].difficulty — "easy" | "medium" | "hard" (drives ElevenLabs pacing, hint display, etc.)
+[//]: # therapyBlocks[].topic — the subject matter (for content theming and ElevenLabs accent/voice selection if needed)
