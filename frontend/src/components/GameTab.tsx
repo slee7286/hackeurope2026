@@ -425,7 +425,7 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId }: GameTabPr
           style={{ color: isCorrect ? 'var(--color-correct)' : 'var(--color-danger)' }}
           aria-label={isCorrect ? 'Correct' : 'Incorrect'}
         >
-          {isCorrect ? 'OK' : 'X'}
+          {isCorrect ? '✓' : '✗'}
         </div>
         <div
           className="game-feedback-label"
