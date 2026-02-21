@@ -39,6 +39,8 @@ export interface UseTherapyEngineResult {
   start: () => void;
   /** Submit the patient's answer: presenting → showingFeedback. Guarded against double submission. */
   submitAnswer: (text: string) => void;
+  /** Skip the current section (block) and move to the next section. */
+  skipSection: () => void;
   /** Advance to the next item: showingFeedback → presenting | ended. */
   next: () => void;
   /** End the session early. */
@@ -142,6 +144,24 @@ export function useTherapyEngine(): UseTherapyEngineResult {
     });
   }, []);
 
+  const skipSection = useCallback(() => {
+    setState((prev) => {
+      if (prev.status !== 'presenting' || !prev.plan) return prev;
+      const nextBlockIndex = prev.blockIndex + 1;
+
+      if (nextBlockIndex < prev.plan.therapyBlocks.length) {
+        return {
+          ...prev,
+          blockIndex: nextBlockIndex,
+          itemIndex: 0,
+          feedback: null,
+        };
+      }
+
+      return { ...prev, status: 'ended', feedback: null };
+    });
+  }, []);
+
   const end = useCallback(() => {
     setState((prev) => ({ ...prev, status: 'ended' }));
   }, []);
@@ -157,6 +177,7 @@ export function useTherapyEngine(): UseTherapyEngineResult {
     loadPlan,
     start,
     submitAnswer,
+    skipSection,
     next,
     end,
   };

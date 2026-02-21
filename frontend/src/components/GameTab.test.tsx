@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { GameTab } from './GameTab';
@@ -35,6 +35,26 @@ const plan: TherapySessionPlan = {
         {
           prompt: 'Say hello',
           answer: 'hello',
+        },
+      ],
+    },
+  ],
+};
+
+const twoSectionPlan: TherapySessionPlan = {
+  ...plan,
+  therapyBlocks: [
+    plan.therapyBlocks[0],
+    {
+      blockId: 'block-2',
+      type: 'sentence_completion',
+      topic: 'travel',
+      difficulty: 'easy',
+      description: 'complete sentence',
+      items: [
+        {
+          prompt: 'I will go to the ___',
+          answer: 'airport',
         },
       ],
     },
@@ -78,6 +98,7 @@ beforeEach(() => {
     loadPlan: vi.fn(),
     start: vi.fn(),
     submitAnswer: vi.fn(),
+    skipSection: vi.fn(),
     next: vi.fn(),
     end: vi.fn(),
   });
@@ -223,6 +244,7 @@ describe('GameTab audio-first input flow', () => {
       loadPlan: vi.fn(),
       start: vi.fn(),
       submitAnswer,
+      skipSection: vi.fn(),
       next: vi.fn(),
       end: vi.fn(),
     });
@@ -304,5 +326,96 @@ describe('GameTab audio-first input flow', () => {
 
     expect(stopRecording).toHaveBeenCalledWith({ discard: false });
     expect(screen.getByLabelText('Answer input')).toHaveValue('second try');
+  });
+});
+
+describe('GameTab plan handoff flow', () => {
+  it('starts with practice summary hidden and reveals it from dropdown', () => {
+    render(
+      <GameTab
+        plan={plan}
+        onGoHome={vi.fn()}
+        tts={makeTts()}
+        stt={makeStt()}
+        selectedVoiceId="voice-1"
+        speechRate={0.8}
+      />
+    );
+
+    const difficultyText = screen.getByText('Difficulty: easy');
+    expect(difficultyText).not.toBeVisible();
+    fireEvent.click(screen.getByText('View practice summary (optional)'));
+    expect(difficultyText).toBeVisible();
+  });
+
+  it('auto-starts practice when plan is loaded', async () => {
+    const start = vi.fn();
+    useTherapyEngineMock.mockReturnValue({
+      status: 'loaded',
+      plan,
+      blockIndex: 0,
+      itemIndex: 0,
+      score: { correct: 0, total: 0 },
+      feedback: null,
+      error: null,
+      loadPlan: vi.fn(),
+      start,
+      submitAnswer: vi.fn(),
+      skipSection: vi.fn(),
+      next: vi.fn(),
+      end: vi.fn(),
+    });
+
+    render(
+      <GameTab
+        plan={plan}
+        onGoHome={vi.fn()}
+        tts={makeTts()}
+        stt={makeStt()}
+        selectedVoiceId="voice-1"
+        speechRate={0.8}
+      />
+    );
+
+    await waitFor(() => expect(start).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('button', { name: 'Begin practice' })).not.toBeInTheDocument();
+  });
+});
+
+describe('GameTab demo skip flow', () => {
+  it('triggers section skip and stops audio when Demo Skip is pressed', () => {
+    const skipSection = vi.fn();
+    const stop = vi.fn();
+
+    useTherapyEngineMock.mockReturnValue({
+      status: 'presenting',
+      plan: twoSectionPlan,
+      blockIndex: 0,
+      itemIndex: 0,
+      score: { correct: 0, total: 0 },
+      feedback: null,
+      error: null,
+      loadPlan: vi.fn(),
+      start: vi.fn(),
+      submitAnswer: vi.fn(),
+      skipSection,
+      next: vi.fn(),
+      end: vi.fn(),
+    });
+
+    render(
+      <GameTab
+        plan={twoSectionPlan}
+        onGoHome={vi.fn()}
+        tts={makeTts({ stop })}
+        stt={makeStt()}
+        selectedVoiceId="voice-1"
+        speechRate={0.8}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Demo Skip' }));
+    expect(skipSection).toHaveBeenCalledTimes(1);
+    expect(stop).toHaveBeenCalledTimes(1);
   });
 });

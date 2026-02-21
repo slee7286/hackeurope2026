@@ -1,5 +1,9 @@
 import { Router, Request, Response, NextFunction } from "express";
-import { startSession, processMessage } from "../engine/conversationEngine";
+import {
+  startSession,
+  processMessage,
+  startDemoSkipSession,
+} from "../engine/conversationEngine";
 import { sessionStore } from "../store/sessionStore";
 import type {
   StartSessionResponse,
@@ -31,6 +35,33 @@ sessionRouter.post(
         sessionId,
         message: firstMessage,
         status: "active",
+      };
+
+      res.status(200).json(body);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// ─── POST /api/session/demo-skip ─────────────────────────────────────────────
+/**
+ * Creates a demo session and skips counselling by auto-filling the required
+ * profile inputs for plan generation.
+ *
+ * Response 200:
+ *   { "sessionId": "uuid", "message": "...", "status": "finalizing" }
+ */
+sessionRouter.post(
+  "/demo-skip",
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { sessionId, firstMessage, status } = await startDemoSkipSession();
+
+      const body: StartSessionResponse = {
+        sessionId,
+        message: firstMessage,
+        status,
       };
 
       res.status(200).json(body);

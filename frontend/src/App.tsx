@@ -35,7 +35,7 @@ export default function App() {
   );
   const lastAutoPlayedAiMessageKeyRef = useRef<string | null>(null);
 
-  const { state, start, send } = useSession();
+  const { state, start, send, demoSkip } = useSession();
   const stt = useSpeechToText();
   const tts = useTextToSpeech();
   const { speak } = tts;
@@ -95,6 +95,11 @@ export default function App() {
     await start();
   }, [start]);
 
+  const handleDemoSkip = useCallback(async () => {
+    setView('session');
+    await demoSkip();
+  }, [demoSkip]);
+
   return (
     <Layout showBackButton={view !== 'home'} onBackButtonClick={() => setView('home')}>
       {view === 'home' && (
@@ -152,6 +157,9 @@ export default function App() {
                 <div className="session-start-actions">
                   <button onClick={handleStartSession} className="btn-primary">
                     Check into session
+                  </button>
+                  <button onClick={handleDemoSkip} className="btn-secondary">
+                    Demo Skip
                   </button>
                   <button onClick={() => setView('admin')} className="btn-secondary">
                     Admin settings

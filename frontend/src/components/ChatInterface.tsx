@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { ChatMessage } from '../hooks/useSession';
 import type { FullStatus } from '../hooks/useSession';
-import type { TherapySessionPlan } from '../api/sessionClient';
 import type { UseTextToSpeechResult } from '../hooks/useTextToSpeech';
 
 interface ChatInterfaceProps {
   messages: ChatMessage[];
   status: FullStatus;
-  plan: TherapySessionPlan | null;
   isLoading: boolean;
   onSend: (text: string) => void;
   voiceInput: string;
@@ -44,61 +42,6 @@ function StatusBadge({ status }: { status: FullStatus }) {
       }}
     >
       {cfg.label}
-    </div>
-  );
-}
-
-function PlanSummary({ plan }: { plan: TherapySessionPlan }) {
-  const topics = [...new Set(plan.therapyBlocks.map((b) => b.topic))];
-
-  return (
-    <div
-      className="fade-in"
-      style={{
-        background: 'var(--color-surface-alt)',
-        border: '1.5px solid var(--color-accent-rose)',
-        borderRadius: 'var(--radius)',
-        padding: '16px 20px',
-        margin: '6px 0',
-      }}
-    >
-      <div
-        style={{
-          fontWeight: 700,
-          fontSize: 'var(--font-size-lg)',
-          marginBottom: '6px',
-          color: 'var(--color-primary)',
-        }}
-      >
-        Today's session plan
-      </div>
-      <div
-        style={{
-          color: 'var(--color-text-muted)',
-          fontSize: 'var(--font-size-sm)',
-          marginBottom: '10px',
-        }}
-      >
-        {plan.sessionMetadata.estimatedDurationMinutes} min | {plan.therapyBlocks.length} exercises
-      </div>
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        {topics.map((topic) => (
-          <span
-            key={topic}
-            style={{
-              background: 'var(--color-primary)',
-              color: '#fff',
-              borderRadius: '99px',
-              padding: '4px 13px',
-              fontSize: 'var(--font-size-sm)',
-              fontWeight: 600,
-              textTransform: 'capitalize',
-            }}
-          >
-            {topic}
-          </span>
-        ))}
-      </div>
     </div>
   );
 }
@@ -154,7 +97,6 @@ function TypingIndicator() {
 export function ChatInterface({
   messages,
   status,
-  plan,
   isLoading,
   onSend,
   voiceInput,
@@ -292,8 +234,6 @@ export function ChatInterface({
         ))}
 
         {isLoading && <TypingIndicator />}
-
-        {plan && <PlanSummary plan={plan} />}
 
         <div ref={messagesEndRef} />
       </div>
