@@ -6,11 +6,19 @@ https://aphasia.org/what-is-aphasia/
 
 ## Problem statement
 
-Research has shown that those suffering from aphasia find understanding unfamiliar accents significantly more difficult. Despite this, existing digital therapy solutions do not allow patients to learn from accents they encounter in their daily lives. Current technological aids in speech and language therapy to treat aphasia do not provide intelligent, adaptable and customisable experiences to patients.
+Research has shown that those suffering from aphasia find understanding unfamiliar accents significantly more difficult. Despite this, existing computer based therapies do not allow patients to learn from accents they encounter in their daily lives. Current aids in speech and language therapy to treat aphasia do not provide intelligent, adaptable or customisable experiences to patients.
+
+>The results indicate that non-native accented speech affects comprehension even on simple tasks in ideal listening conditions. The findings suggest that speaker accent, especially accents varying in both segmental and prosodic features, can be a barrier to successful interactions between non-native accented speakers and native listeners, particularly those with aphasia.
+
+Bruce C, To CT, Newton C. Accent on communication: the impact of regional and foreign accent on comprehension in adults with aphasia. Disabil Rehabil. 2012;34(12):1024-9. doi: 10.3109/09638288.2011.631680. Epub 2012 Feb 24. PMID: 22360727.
+
+>The impact of speaker accent should be considered in the rehabilitation of individuals with aphasia following stroke. Clinical implications include the possibility of underestimating an individual's language abilities on assessment, and the potential errors in comprehension that may occur.
+
+Dunton J, Bruce C, Newton C. Investigating the impact of unfamiliar speaker accent on auditory comprehension in adults with aphasia. Int J Lang Commun Disord. 2011 Jan-Feb;46(1):63-73. doi: 10.3109/13682820903560294. Epub 2010 Feb 23. PMID: 20178407.
 
 ## Solution
 
-Using agentic AI and natural sounding AI voices we will develop a modern speech and therapy solution.
+Use agentic AI to develop custom speech and language therapy sessions based on up to date information on topics that are actually relevant to the patient's life. Deliver sessions in the patient's regional accent using natural sounding AI voices from Elevenlabs' extensive voice library or clone the voice of a friend or family member. Sessions adapt to the patient's level, even tuning the speed of speech.x
 
 
 ## Motivating Statistics
