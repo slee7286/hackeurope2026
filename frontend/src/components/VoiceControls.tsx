@@ -6,11 +6,19 @@ interface VoiceControlsProps {
   /** Called with the recognised text so it can be sent to the session. */
   onTranscriptReady: (text: string) => void;
   disabled: boolean;
+  embedded?: boolean;
+  buttonsOnly?: boolean;
 }
 
 const MIN_HOLD_DURATION_MS = 150;
 
-export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControlsProps) {
+export function VoiceControls({
+  stt,
+  onTranscriptReady,
+  disabled,
+  embedded = false,
+  buttonsOnly = false,
+}: VoiceControlsProps) {
   const [holdHint, setHoldHint] = useState<string | null>(null);
   const holdStartTimeRef = useRef<number | null>(null);
 
@@ -45,28 +53,30 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
   return (
     <div
       style={{
-        background: 'var(--color-surface)',
-        borderRadius: 'var(--radius)',
-        boxShadow: 'var(--shadow)',
-        border: '1px solid var(--color-border)',
-        padding: '16px 20px',
+        background: embedded ? 'transparent' : 'var(--color-surface)',
+        borderRadius: embedded ? 0 : 'var(--radius)',
+        boxShadow: embedded ? 'none' : 'var(--shadow)',
+        border: embedded ? 'none' : '1px solid var(--color-border)',
+        padding: embedded ? '0' : '16px 20px',
         display: 'flex',
         alignItems: 'center',
         gap: '14px',
         flexWrap: 'wrap',
       }}
     >
-      {/* Section label */}
-      <span
-        style={{
-          fontSize: 'var(--font-size-sm)',
-          color: 'var(--color-text-muted)',
-          fontWeight: 600,
-          marginRight: '2px',
-        }}
-      >
-        Voice input:
-      </span>
+      {!buttonsOnly && (
+        <span
+          style={{
+            fontSize: 'var(--font-size-sm)',
+            color: 'var(--color-text-muted)',
+            fontWeight: 600,
+            marginRight: '2px',
+          }}
+        >
+          Voice input:
+        </span>
+      )}
+
       <button
         onMouseDown={handleRecordMouseDown}
         onMouseUp={handleRecordMouseUp}
@@ -89,93 +99,97 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
         {stt.isRecording ? 'Recording...' : stt.isTranscribing ? 'Transcribing...' : 'Hold to Talk'}
       </button>
 
-      {/* Recording indicator */}
-      {stt.isRecording && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            color: 'var(--color-danger)',
-            fontWeight: 600,
-            fontSize: 'var(--font-size-sm)',
-          }}
-          aria-live="assertive"
-        >
-          <span
+      {!buttonsOnly && (
+        <>
+          {/* Recording indicator */}
+          {stt.isRecording && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                color: 'var(--color-danger)',
+                fontWeight: 600,
+                fontSize: 'var(--font-size-sm)',
+              }}
+              aria-live="assertive"
+            >
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  background: 'var(--color-danger)',
+                  animation: 'pulse 1s ease infinite',
+                }}
+                aria-hidden="true"
+              />
+              Recording... release to stop.
+            </div>
+          )}
+
+          {stt.isTranscribing && (
+            <div
+              style={{
+                color: 'var(--color-text-muted)',
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: 600,
+              }}
+              aria-live="polite"
+            >
+              Transcribing...
+            </div>
+          )}
+
+          {holdHint && (
+            <div
+              style={{
+                color: 'var(--color-text-muted)',
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: 600,
+              }}
+              role="status"
+            >
+              {holdHint}
+            </div>
+          )}
+
+          {/* Confirmation that transcript was received */}
+          {stt.transcript && !stt.isRecording && (
+            <div
+              style={{
+                color: 'var(--color-accent)',
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: 600,
+              }}
+            >
+              Voice input captured and sent.
+            </div>
+          )}
+
+          {stt.error && (
+            <div
+              style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)' }}
+              role="alert"
+            >
+              {stt.error}
+            </div>
+          )}
+
+          {/* Attribution */}
+          <div
             style={{
-              display: 'inline-block',
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
-              background: 'var(--color-danger)',
-              animation: 'pulse 1s ease infinite',
+              marginLeft: 'auto',
+              fontSize: '13px',
+              color: 'var(--color-text-muted)',
+              whiteSpace: 'nowrap',
             }}
-            aria-hidden="true"
-          />
-          Recording... release to stop.
-        </div>
+          >
+            Google Speech-to-Text
+          </div>
+        </>
       )}
-
-      {stt.isTranscribing && (
-        <div
-          style={{
-            color: 'var(--color-text-muted)',
-            fontSize: 'var(--font-size-sm)',
-            fontWeight: 600,
-          }}
-          aria-live="polite"
-        >
-          Transcribing...
-        </div>
-      )}
-
-      {holdHint && (
-        <div
-          style={{
-            color: 'var(--color-text-muted)',
-            fontSize: 'var(--font-size-sm)',
-            fontWeight: 600,
-          }}
-          role="status"
-        >
-          {holdHint}
-        </div>
-      )}
-
-      {/* Confirmation that transcript was received */}
-      {stt.transcript && !stt.isRecording && (
-        <div
-          style={{
-            color: 'var(--color-accent)',
-            fontSize: 'var(--font-size-sm)',
-            fontWeight: 600,
-          }}
-        >
-          Voice input captured and sent.
-        </div>
-      )}
-
-      {stt.error && (
-        <div
-          style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)' }}
-          role="alert"
-        >
-          {stt.error}
-        </div>
-      )}
-
-      {/* Attribution */}
-      <div
-        style={{
-          marginLeft: 'auto',
-        fontSize: '13px',
-        color: 'var(--color-text-muted)',
-        whiteSpace: 'nowrap',
-      }}
-    >
-      Google Speech-to-Text
     </div>
-  </div>
-);
+  );
 }

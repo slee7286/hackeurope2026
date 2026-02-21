@@ -33,11 +33,12 @@ export default function App() {
   const [captionsEnabled, setCaptionsEnabled] = useState<boolean>(
     () => localStorage.getItem(CAPTIONS_STORAGE_KEY) !== '0'
   );
-  const lastAutoPlayedAiMessageIndexRef = useRef(-1);
+  const lastAutoPlayedAiMessageKeyRef = useRef<string | null>(null);
 
   const { state, start, send } = useSession();
   const stt = useSpeechToText();
   const tts = useTextToSpeech();
+  const { speak } = tts;
 
   const handleTranscriptReady = useCallback(
     (text: string) => {
@@ -78,14 +79,16 @@ export default function App() {
     }
 
     if (latestAiMessageIndex < 0) return;
-    if (latestAiMessageIndex === lastAutoPlayedAiMessageIndexRef.current) return;
 
     const nextAiMessage = state.messages[latestAiMessageIndex]?.text?.trim();
     if (!nextAiMessage) return;
 
-    lastAutoPlayedAiMessageIndexRef.current = latestAiMessageIndex;
-    void tts.speak(nextAiMessage, selectedVoiceId, speechRate);
-  }, [view, state.messages, selectedVoiceId, speechRate, tts]);
+    const nextAiMessageKey = `${state.sessionId ?? 'no-session'}:${latestAiMessageIndex}:${nextAiMessage}`;
+    if (nextAiMessageKey === lastAutoPlayedAiMessageKeyRef.current) return;
+
+    lastAutoPlayedAiMessageKeyRef.current = nextAiMessageKey;
+    void speak(nextAiMessage, selectedVoiceId, speechRate);
+  }, [view, state.messages, state.sessionId, selectedVoiceId, speechRate, speak]);
 
   const handleStartSession = useCallback(async () => {
     setView('session');
@@ -216,8 +219,7 @@ export default function App() {
                 </div>
 
                 <div className="surface-panel session-voice-output">
-                  <div className="session-voice-output-header">
-                    <h3>Voice output</h3>
+                  <div className="session-voice-controls">
                     <button
                       className="btn-primary"
                       onClick={() => tts.speak(latestAiMessage, selectedVoiceId, speechRate)}
@@ -227,14 +229,14 @@ export default function App() {
                       {tts.isPlaying ? 'Playing...' : 'Repeat response'}
                     </button>
                   </div>
-                  <p>Use hold-to-talk for input. AI replies are delivered as audio.</p>
+                  <VoiceControls
+                    stt={stt}
+                    onTranscriptReady={handleTranscriptReady}
+                    disabled={state.isLoading || state.status === 'completed' || state.status === 'finalizing'}
+                    embedded
+                    buttonsOnly
+                  />
                 </div>
-
-                <VoiceControls
-                  stt={stt}
-                  onTranscriptReady={handleTranscriptReady}
-                  disabled={state.isLoading || state.status === 'completed' || state.status === 'finalizing'}
-                />
 
                 {planReady && (
                   <div style={{ textAlign: 'center', paddingTop: 4 }}>
