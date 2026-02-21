@@ -227,6 +227,140 @@ input[type='text']:disabled {
   min-height: 220px;
 }
 
+.session-orb-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: clamp(250px, 36vh, 390px);
+  padding: 14px 0 26px;
+}
+
+.speech-orb-shell {
+  width: min(72vw, 560px);
+  aspect-ratio: 1;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+}
+
+.speech-orb-stage {
+  position: relative;
+  width: 22%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+}
+
+.speech-orb-ambient {
+  position: absolute;
+  inset: -6%;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    rgba(56, 153, 255, 0.56) 0%,
+    rgba(44, 135, 245, 0.28) 34%,
+    rgba(37, 112, 225, 0.12) 54%,
+    rgba(33, 102, 212, 0) 72%
+  );
+  filter: blur(15px);
+  opacity: 0.22;
+  transform: scale(1.01);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.speech-orb-core {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.78), rgba(140, 214, 255, 0.68) 24%, rgba(37, 136, 255, 0.9) 62%, rgba(18, 76, 196, 0.95)),
+    linear-gradient(165deg, rgba(97, 181, 255, 0.45), rgba(15, 56, 170, 0.2));
+  overflow: hidden;
+  will-change: transform, box-shadow;
+}
+
+.speech-orb-core-inner {
+  position: absolute;
+  inset: 12%;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.9), rgba(145, 211, 255, 0.32) 58%, rgba(17, 90, 225, 0.1));
+  filter: blur(0.4px);
+  will-change: transform, opacity;
+}
+
+.speech-orb-sheen {
+  position: absolute;
+  width: 122%;
+  height: 28%;
+  top: 12%;
+  left: -11%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0));
+  mix-blend-mode: screen;
+  filter: blur(3px);
+  opacity: 0.6;
+  animation: orbDrift 10s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.speech-orb-caption {
+  min-height: 1.5em;
+  width: min(88%, 520px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.speech-orb-caption.is-idle {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+.speech-orb-caption.is-playing {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.speech-orb-word {
+  display: inline-block;
+  font-size: clamp(18px, 2.3vw, 29px);
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(19, 70, 148, 0.88);
+  text-shadow: 0 0 14px rgba(79, 160, 255, 0.22);
+  opacity: 0;
+  transform: translateY(7px);
+  filter: blur(1px);
+  transition:
+    opacity var(--word-fade-ms, 520ms) ease,
+    transform var(--word-fade-ms, 520ms) ease,
+    filter var(--word-fade-ms, 520ms) ease;
+}
+
+.speech-orb-word.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+.speech-orb-sentence {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0.34em;
+}
+
 .session-start {
   display: flex;
   flex-direction: column;
@@ -422,6 +556,15 @@ input[type='text']:disabled {
   animation: fadeIn 0.25s ease both;
 }
 
+@keyframes orbDrift {
+  0% {
+    transform: rotate(-11deg) translateX(0);
+  }
+  100% {
+    transform: rotate(12deg) translateX(6%);
+  }
+}
+
 @media (max-width: 760px) {
   .surface-panel {
     padding: 18px;
@@ -433,6 +576,17 @@ input[type='text']:disabled {
 
   .home-btn {
     width: 100%;
+  }
+
+  .session-orb-container {
+    min-height: clamp(220px, 30vh, 280px);
+    padding: 6px 0 18px;
+  }
+
+  .speech-orb-shell {
+    width: min(92vw, 420px);
+    min-width: 260px;
+    gap: 24px;
   }
 
 }

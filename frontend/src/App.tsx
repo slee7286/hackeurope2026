@@ -4,6 +4,7 @@ import { ChatInterface } from './components/ChatInterface';
 import { VoiceControls } from './components/VoiceControls';
 import { SessionHistory } from './components/SessionHistory';
 import { AdminVoiceSettings } from './components/AdminVoiceSettings';
+import { SpeechIndicatorOrb } from './components/SpeechIndicatorOrb';
 import { useSession } from './hooks/useSession';
 import { useSpeechToText } from './hooks/useSpeechToText';
 import { useTextToSpeech } from './hooks/useTextToSpeech';
@@ -141,6 +142,15 @@ export default function App() {
 
             {sessionActive && (
               <>
+                <div className="session-orb-container">
+                  <SpeechIndicatorOrb
+                    audioElement={tts.currentAudio}
+                    isPlaying={tts.isPlaying}
+                    spokenText={tts.currentText}
+                    wordTimings={tts.currentWordTimings}
+                  />
+                </div>
+
                 <ChatInterface
                   messages={state.messages}
                   status={state.status}

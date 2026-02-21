@@ -22,6 +22,94 @@ interface AccentVoicePayload {
   voices: AccentVoiceEntry[];
 }
 
+interface TtsRequestBody {
+  text?: string;
+  voiceId?: string;
+  voice_id?: string;
+}
+
+interface CharacterAlignment {
+  characters: string[];
+  character_start_times_seconds: number[];
+  character_end_times_seconds: number[];
+}
+
+interface TtsWithTimestampsResponse {
+  audio_base64: string;
+  alignment: CharacterAlignment | null;
+  normalized_alignment: CharacterAlignment | null;
+}
+
+interface WordTiming {
+  word: string;
+  start: number;
+  end: number;
+}
+
+function resolveTargetVoiceId(body: TtsRequestBody): string {
+  const requestedVoiceId =
+    (typeof body.voiceId === "string" ? body.voiceId : body.voice_id)?.trim() ?? "";
+
+  return (
+    requestedVoiceId ||
+    process.env.ELEVENLABS_DEFAULT_VOICE_ID ||
+    "fVVjLtJgnQI61CoImgHU"
+  );
+}
+
+function deriveWordTimings(alignment: CharacterAlignment | null): WordTiming[] {
+  if (!alignment) return [];
+
+  const { characters, character_start_times_seconds, character_end_times_seconds } = alignment;
+  const length = Math.min(
+    characters.length,
+    character_start_times_seconds.length,
+    character_end_times_seconds.length
+  );
+
+  if (length === 0) return [];
+
+  const results: WordTiming[] = [];
+  let currentWord = "";
+  let currentStart: number | null = null;
+  let currentEnd: number | null = null;
+
+  const pushWord = () => {
+    if (!currentWord) return;
+    const start = Number.isFinite(currentStart) ? (currentStart as number) : 0;
+    const end = Number.isFinite(currentEnd) ? (currentEnd as number) : start;
+    results.push({
+      word: currentWord,
+      start,
+      end: end >= start ? end : start,
+    });
+    currentWord = "";
+    currentStart = null;
+    currentEnd = null;
+  };
+
+  for (let i = 0; i < length; i += 1) {
+    const char = characters[i] ?? "";
+    const start = character_start_times_seconds[i] ?? 0;
+    const end = character_end_times_seconds[i] ?? start;
+
+    if (/\s/.test(char)) {
+      pushWord();
+      continue;
+    }
+
+    if (!currentWord) {
+      currentStart = start;
+    }
+
+    currentWord += char;
+    currentEnd = end;
+  }
+
+  pushWord();
+  return results;
+}
+
 /**
  * GET /api/tts/voices
  * Returns accent/dialect voice metadata from TTS/elevenlabs_monolingual_v1_accents_dialects.json.
@@ -110,6 +198,82 @@ ttsRouter.post(
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("X-Voice-Id", targetVoiceId);
       res.send(Buffer.from(audioBuffer));
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * POST /api/tts/with-timestamps
+ * Body: { text: string; voiceId?: string; voice_id?: string }
+ *
+ * Returns:
+ * {
+ *   audioBase64: string,
+ *   wordTimings: Array<{ word: string; start: number; end: number }>,
+ *   voiceId: string
+ * }
+ */
+ttsRouter.post(
+  "/with-timestamps",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const body = req.body as TtsRequestBody;
+      const text = body.text;
+
+      if (!text || typeof text !== "string" || !text.trim()) {
+        res.status(400).json({ error: "Request body must include a non-empty 'text' string." });
+        return;
+      }
+
+      const apiKey = process.env.ELEVENLABS_API_KEY;
+      if (!apiKey) {
+        res.status(503).json({ error: "ElevenLabs API key not configured on server." });
+        return;
+      }
+
+      const targetVoiceId = resolveTargetVoiceId(body);
+      const modelId = process.env.ELEVENLABS_MODEL_ID ?? "eleven_flash_v2_5";
+
+      const elevenRes = await fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${targetVoiceId}/with-timestamps`,
+        {
+          method: "POST",
+          headers: {
+            "xi-api-key": apiKey,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            text: text.trim(),
+            model_id: modelId,
+            voice_settings: {
+              stability: 0.75,
+              similarity_boost: 0.75,
+            },
+          }),
+        }
+      );
+
+      if (!elevenRes.ok) {
+        const errText = await elevenRes.text();
+        throw new Error(`ElevenLabs timestamp error ${elevenRes.status}: ${errText}`);
+      }
+
+      const payload = (await elevenRes.json()) as TtsWithTimestampsResponse;
+      const alignment = payload.alignment ?? payload.normalized_alignment;
+      const wordTimings = deriveWordTimings(alignment);
+
+      if (!payload.audio_base64) {
+        throw new Error("ElevenLabs did not return audio_base64.");
+      }
+
+      res.json({
+        audioBase64: payload.audio_base64,
+        wordTimings,
+        voiceId: targetVoiceId,
+      });
     } catch (err) {
       next(err);
     }
