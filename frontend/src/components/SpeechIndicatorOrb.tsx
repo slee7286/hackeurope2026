@@ -9,9 +9,16 @@ interface SpeechIndicatorOrbProps {
   isPlaying: boolean;
   spokenText: string | null;
   wordTimings: SpokenWordTiming[];
+  captionsEnabled: boolean;
 }
 
-export function SpeechIndicatorOrb({ audioElement, isPlaying, spokenText, wordTimings }: SpeechIndicatorOrbProps) {
+export function SpeechIndicatorOrb({
+  audioElement,
+  isPlaying,
+  spokenText,
+  wordTimings,
+  captionsEnabled,
+}: SpeechIndicatorOrbProps) {
   const ambientHaloRef = useRef<HTMLDivElement>(null);
   const coreRef = useRef<HTMLDivElement>(null);
   const innerCoreRef = useRef<HTMLDivElement>(null);
@@ -288,18 +295,20 @@ export function SpeechIndicatorOrb({ audioElement, isPlaying, spokenText, wordTi
           <div ref={sheenRef} className="speech-orb-sheen" />
         </div>
       </div>
-      <div
-        className={`speech-orb-caption ${isPlaying && activeWordIndex >= 0 ? 'is-playing' : 'is-idle'}`}
-        style={{ '--word-fade-ms': `${wordFadeMs}ms` } as React.CSSProperties}
-      >
-        <span className="speech-orb-sentence">
-          {captionWords.map((word, index) => (
-            <span key={`${word}-${index}`} className={`speech-orb-word ${index <= activeWordIndex ? 'is-visible' : ''}`}>
-              {word}
-            </span>
-          ))}
-        </span>
-      </div>
+      {captionsEnabled && (
+        <div
+          className={`speech-orb-caption ${isPlaying && activeWordIndex >= 0 ? 'is-playing' : 'is-idle'}`}
+          style={{ '--word-fade-ms': `${wordFadeMs}ms` } as React.CSSProperties}
+        >
+          <span className="speech-orb-sentence">
+            {captionWords.map((word, index) => (
+              <span key={`${word}-${index}`} className={`speech-orb-word ${index <= activeWordIndex ? 'is-visible' : ''}`}>
+                {word}
+              </span>
+            ))}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

@@ -227,6 +227,72 @@ input[type='text']:disabled {
   min-height: 220px;
 }
 
+.session-captions-toggle-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.caption-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.caption-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.caption-toggle-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.caption-toggle-slider {
+  position: relative;
+  width: 46px;
+  height: 26px;
+  border-radius: 999px;
+  background: #d7e3e8;
+  border: 1px solid rgba(93, 129, 143, 0.35);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.caption-toggle-slider::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.14);
+  transition: transform 0.2s ease;
+}
+
+.caption-toggle input:checked + .caption-toggle-slider {
+  background: #4e89ff;
+  border-color: #4e89ff;
+}
+
+.caption-toggle input:checked + .caption-toggle-slider::before {
+  transform: translateX(20px);
+}
+
+.caption-toggle input:focus-visible + .caption-toggle-slider {
+  outline: 3px solid rgba(78, 137, 255, 0.28);
+  outline-offset: 2px;
+}
+
 .session-orb-container {
   display: flex;
   justify-content: center;
@@ -583,6 +649,10 @@ input[type='text']:disabled {
   .session-orb-container {
     min-height: clamp(240px, 34vh, 320px);
     padding: 4px 0 44px;
+  }
+
+  .session-captions-toggle-row {
+    justify-content: center;
   }
 
   .speech-orb-shell {
