@@ -1,28 +1,63 @@
 import { Router, Request, Response, NextFunction } from "express";
+import { promises as fs } from "fs";
+import path from "path";
 
 export const ttsRouter = Router();
 
+interface AccentVoiceEntry {
+  language: string;
+  language_id: string;
+  dialect: string;
+  accent: string;
+  accent_description: string;
+  voice_id: string;
+}
+
+interface AccentVoicePayload {
+  source: string;
+  model: {
+    id: string;
+    name: string;
+  };
+  voices: AccentVoiceEntry[];
+}
+
+/**
+ * GET /api/tts/voices
+ * Returns accent/dialect voice metadata from TTS/elevenlabs_monolingual_v1_accents_dialects.json.
+ */
+ttsRouter.get(
+  "/voices",
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const accentsFilePath = path.join(
+        process.cwd(),
+        "TTS",
+        "elevenlabs_monolingual_v1_accents_dialects.json"
+      );
+
+      const content = await fs.readFile(accentsFilePath, "utf8");
+      const payload = JSON.parse(content) as AccentVoicePayload;
+      res.json(payload);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 /**
  * POST /api/tts
- * Body: { text: string; voiceId?: string }
- *
- * Proxies to the ElevenLabs Text-to-Speech API and returns audio/mpeg.
- * The API key is kept on the server — never exposed to the browser.
- *
- * Setup:
- *   1. Create an account at https://elevenlabs.io
- *   2. Copy your API key to .env as ELEVENLABS_API_KEY
- *   3. Optionally set ELEVENLABS_DEFAULT_VOICE_ID (fallback when voiceId is omitted)
- *      Browse voices: https://elevenlabs.io/voice-library
- *
- * ElevenLabs TTS docs:
- *   https://elevenlabs.io/docs/api-reference/text-to-speech
+ * Body: { text: string; voiceId?: string; voice_id?: string }
  */
 ttsRouter.post(
   "/",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { text, voiceId } = req.body as { text?: string; voiceId?: string };
+      const { text, voiceId, voice_id } = req.body as {
+        text?: string;
+        voiceId?: string;
+        voice_id?: string;
+      };
 
       if (!text || typeof text !== "string" || !text.trim()) {
         res.status(400).json({ error: "Request body must include a non-empty 'text' string." });
@@ -31,23 +66,20 @@ ttsRouter.post(
 
       const apiKey = process.env.ELEVENLABS_API_KEY;
       if (!apiKey) {
-        // TODO: Add ELEVENLABS_API_KEY=<your-key> to .env
         res.status(503).json({ error: "ElevenLabs API key not configured on server." });
         return;
       }
 
-      // Use the provided voiceId or fall back to env default
+      const requestedVoiceId =
+        (typeof voiceId === "string" ? voiceId : voice_id)?.trim() ?? "";
+
       const targetVoiceId =
-        voiceId ??
-        process.env.ELEVENLABS_DEFAULT_VOICE_ID ??
-        "EXAVITQu4vr4xnSDxMaL"; // Rachel — calm, clear, good for therapy
+        requestedVoiceId ||
+        process.env.ELEVENLABS_DEFAULT_VOICE_ID ||
+        "fVVjLtJgnQI61CoImgHU";
 
-      // eleven_flash_v2_5 is fast and available on the free tier.
-      // Override via ELEVENLABS_MODEL_ID in .env if needed.
-      const modelId =
-        process.env.ELEVENLABS_MODEL_ID ?? "eleven_flash_v2_5";
+      const modelId = process.env.ELEVENLABS_MODEL_ID ?? "eleven_flash_v2_5";
 
-      // Call ElevenLabs TTS REST API
       const elevenRes = await fetch(
         `https://api.elevenlabs.io/v1/text-to-speech/${targetVoiceId}`,
         {
@@ -61,8 +93,8 @@ ttsRouter.post(
             text: text.trim(),
             model_id: modelId,
             voice_settings: {
-              stability: 0.75,        // Higher = more consistent pacing (good for therapy)
-              similarity_boost: 0.75, // Balance naturalness vs. voice consistency
+              stability: 0.75,
+              similarity_boost: 0.75,
             },
           }),
         }
@@ -73,13 +105,14 @@ ttsRouter.post(
         throw new Error(`ElevenLabs error ${elevenRes.status}: ${errText}`);
       }
 
-      // Stream audio back to the browser
       const audioBuffer = await elevenRes.arrayBuffer();
       res.setHeader("Content-Type", "audio/mpeg");
       res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("X-Voice-Id", targetVoiceId);
       res.send(Buffer.from(audioBuffer));
     } catch (err) {
       next(err);
     }
   }
 );
+

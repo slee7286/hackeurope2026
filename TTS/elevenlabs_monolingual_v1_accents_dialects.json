@@ -1,0 +1,89 @@
+{
+  "source": "ElevenLabs API",
+  "model": {
+    "id": "eleven_multilingual_v2",
+    "name": "Eleven Multilingual v2"
+  },
+  "voices": [
+    {
+      "language": "English",
+      "language_id": "en",
+      "dialect": "en-IE",
+      "accent": "irish",
+      "accent_description": "Irish male neutral (south Dublin)",
+      "voice_id": "2GErPEnQqbyeqhZQPM6r"
+    },
+    {
+      "language": "English",
+      "language_id": "en",
+      "dialect": "en-IE",
+      "accent": "irish",
+      "accent_description": "Warm southern Irish (Kerry)",
+      "voice_id": "1OYA2kgM85gF2eGN8Hep"
+    },
+    {
+      "language": "English",
+      "language_id": "en",
+      "dialect": "en-IE",
+      "accent": "irish",
+      "accent_description": "James - Deep and clear (Kildare)",
+      "voice_id": "g3kWXuhrNafLZGm1GXju"
+    },
+    {
+      "language": "English",
+      "language_id": "en",
+      "dialect": "en-IE",
+      "accent": "ulster-scots",
+      "accent_description": "Jimmy - Ulster Scot",
+      "voice_id": "Jot7IsvC9VkWPLPjLDKw"
+    },
+    {
+      "language": "English",
+      "language_id": "en",
+      "dialect": "en-US",
+      "accent": "american",
+      "accent_description": "General American",
+      "voice_id": "fVVjLtJgnQI61CoImgHU"
+    },
+    {
+      "language": "English",
+      "language_id": "en",
+      "dialect": "en-US",
+      "accent": "southern-american",
+      "accent_description": "Southern American",
+      "voice_id": "XXxEgZQUteXm4aqJs5PQ"
+    },
+    {
+      "language": "English",
+      "language_id": "en",
+      "dialect": "en-GB",
+      "accent": "london",
+      "accent_description": "London",
+      "voice_id": "WAppqUXeqDqXjNTaQxG9"
+    },
+    {
+      "language": "English",
+      "language_id": "en",
+      "dialect": "en-GB",
+      "accent": "north-england",
+      "accent_description": "North England",
+      "voice_id": "wo6udizrrtpIxWGp2qJk"
+    },
+    {
+      "language": "French",
+      "language_id": "fr",
+      "dialect": "fr-FR",
+      "accent": "french",
+      "accent_description": "French",
+      "voice_id": "xNtG3W2oqJs0cJZuTyBc"
+    },
+    {
+      "language": "English",
+      "language_id": "en",
+      "dialect": "en-NG",
+      "accent": "nigeria",
+      "accent_description": "Nigerian",
+      "voice_id": "me1JPr2K6H7KZB9nz2Wk"
+    }
+  ]
+}

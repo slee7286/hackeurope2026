@@ -57,6 +57,12 @@ export function useTextToSpeech(): UseTextToSpeechResult {
           throw new Error((body as { error?: string }).error ?? `TTS failed (${res.status})`);
         }
 
+        const contentType = (res.headers.get('content-type') || '').toLowerCase();
+        if (!contentType.startsWith('audio/')) {
+          const bodyText = await res.text().catch(() => '');
+          throw new Error(bodyText || 'TTS response was not audio.');
+        }
+
         const audioBlob = await res.blob();
         const audioUrl = URL.createObjectURL(audioBlob);
         objectUrlRef.current = audioUrl;
