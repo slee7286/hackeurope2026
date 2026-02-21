@@ -50,6 +50,12 @@ The JSON must match this exact structure:
   "estimatedDurationMinutes": 20
 }
 
+For "picture_description" blocks only, each item MUST also include a "distractors" array
+of exactly 3 short noun labels for distractor images. Each distractor must be clearly
+different from the answer (no substrings, no synonyms).
+Example picture_description item:
+  { "prompt": "Select the picture of a cat.", "answer": "cat", "distractors": ["dog", "bird", "fish"] }
+
 Valid type values: "word_repetition", "sentence_completion", "picture_description", "word_finding"
 Valid difficulty values: "easy", "medium", "hard"
 

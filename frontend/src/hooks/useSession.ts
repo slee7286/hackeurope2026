@@ -56,9 +56,10 @@ export function useSession() {
           // 'PENDING' is the expected error while the plan is still generating
           if (err instanceof Error && err.message !== 'PENDING') {
             stopPolling();
+            const detail = err.message;
             setState((prev) => ({
               ...prev,
-              error: 'Could not load your plan. Please refresh.',
+              error: `Plan generation failed: ${detail}`,
               status: 'completed',
             }));
           }

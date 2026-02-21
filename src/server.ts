@@ -4,6 +4,7 @@ import cors from "cors";
 import { sessionRouter } from "./routes/session";
 import { ttsRouter } from "./routes/tts";
 import { sttRouter } from "./routes/stt";
+import { imageSearchRouter } from "./routes/imageSearch";
 
 // ─── Env Validation ───────────────────────────────────────────────────────────
 
@@ -37,6 +38,7 @@ app.use("/api/tts", ttsRouter);
 // STT needs raw binary body — apply express.raw() before sttRouter.
 // express.json() (above) only parses application/json, so audio/* passes through untouched.
 app.use("/api/stt", express.raw({ type: "*/*", limit: "10mb" }), sttRouter);
+app.use("/api/image-search", imageSearchRouter);
 
 // Health check
 app.get("/health", (_req: Request, res: Response) => {
