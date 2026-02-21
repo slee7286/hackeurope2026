@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import {
   startSession,
+  startDemoSkipSession,
   sendMessage,
   fetchPlan,
   type TherapySessionPlan,
@@ -51,7 +52,18 @@ export function useSession() {
         try {
           const plan = await fetchPlan(sessionId);
           stopPolling();
-          setState((prev) => ({ ...prev, plan, status: 'completed' }));
+          setState((prev) => ({
+              ...prev,
+              plan,
+              status: 'completed',
+              messages: [
+                ...prev.messages,
+                {
+                  role: 'ai',
+                  text: `Great work today. Your practice session is ready. OK, now we will begin practice.`,
+                },
+              ],
+            }));
         } catch (err) {
           // 'PENDING' is the expected error while the plan is still generating
           if (err instanceof Error && err.message !== 'PENDING') {
@@ -71,6 +83,7 @@ export function useSession() {
 
   /** Start a fresh session. Fetches Claude's greeting and sets sessionId. */
   const start = useCallback(async () => {
+    stopPolling();
     setState((prev) => ({
       ...prev,
       isLoading: true,
@@ -98,7 +111,40 @@ export function useSession() {
         isLoading: false,
       }));
     }
-  }, []);
+  }, [stopPolling]);
+
+  /** Start demo mode and bypass counselling by auto-generating required profile fields. */
+  const demoSkip = useCallback(async () => {
+    stopPolling();
+    setState((prev) => ({
+      ...prev,
+      isLoading: true,
+      error: null,
+      status: 'starting',
+      messages: [],
+      plan: null,
+    }));
+    try {
+      const { sessionId, patientId, message, status } = await startDemoSkipSession();
+      setState((prev) => ({
+        ...prev,
+        sessionId,
+        patientId,
+        messages: [{ role: 'ai', text: message }],
+        status,
+        isLoading: false,
+      }));
+      startPollingForPlan(sessionId);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      setState((prev) => ({
+        ...prev,
+        error: `Could not start demo skip: ${detail}`,
+        status: 'idle',
+        isLoading: false,
+      }));
+    }
+  }, [startPollingForPlan, stopPolling]);
 
   /** Send a patient message. Appends both the patient turn and AI reply. */
   const send = useCallback(
@@ -138,5 +184,5 @@ export function useSession() {
     [state.sessionId, startPollingForPlan]
   );
 
-  return { state, start, send };
+  return { state, start, send, demoSkip };
 }

@@ -47,6 +47,12 @@ export type SessionStatus = 'ongoing' | 'finalizing' | 'completed';
 // ─── API base URL ─────────────────────────────────────────────────────────────
 // Vite proxies /api → http://localhost:3001 (see vite.config.ts)
 const BASE = '/api';
+const STATUS_MAP: Record<string, SessionStatus> = {
+  active: 'ongoing',
+  finalizing: 'finalizing',
+  complete: 'completed',
+  error: 'completed',
+};
 
 // ─── API calls ────────────────────────────────────────────────────────────────
 
@@ -97,16 +103,34 @@ export async function sendMessage(
   }
   const data = await res.json();
 
-  const statusMap: Record<string, SessionStatus> = {
-    active: 'ongoing',
-    finalizing: 'finalizing',
-    complete: 'completed',
-    error: 'completed',
-  };
-
   return {
     reply: data.message as string,   // backend calls the field "message"
-    status: statusMap[data.status as string] ?? 'ongoing',
+    status: STATUS_MAP[data.status as string] ?? 'ongoing',
+  };
+}
+
+/**
+ * Start a demo session that skips counselling and auto-fills required profile
+ * info before plan generation.
+ */
+export async function startDemoSkipSession(): Promise<{
+  sessionId: string;
+  patientId: string;
+  message: string;
+  status: SessionStatus;
+}> {
+  const res = await fetch(`${BASE}/session/demo-skip`, { method: 'POST' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string; detail?: string }).detail ?? (body as { error?: string }).error ?? `HTTP ${res.status}`);
+  }
+  const data = await res.json();
+
+  return {
+    sessionId: data.sessionId,
+    patientId: (data.patientId as string | undefined) ?? 'P-12345',
+    message: data.message,
+    status: STATUS_MAP[data.status as string] ?? 'finalizing',
   };
 }
 

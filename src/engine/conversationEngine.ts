@@ -69,6 +69,15 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+const DEMO_FINALIZE_ARGS: FinalizeSessionArgs = {
+  mood: "motivated",
+  interests: ["travel", "family", "music"],
+  difficulty: "easy",
+  notes:
+    "Demo mode auto-generated check-in profile to skip counselling and move directly into practice.",
+  estimatedDurationMinutes: 15,
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function toAnthropicMessages(history: ConversationMessage[]): MessageParam[] {
@@ -132,6 +141,42 @@ export async function startSession(): Promise<{
 
   sessionStore.set(sessionId, session);
   return { sessionId, firstMessage };
+}
+
+/**
+ * Creates a new demo session that bypasses counselling and immediately
+ * starts plan generation with safe default profile values.
+ */
+export async function startDemoSkipSession(): Promise<{
+  sessionId: string;
+  firstMessage: string;
+  status: "finalizing";
+}> {
+  const sessionId = uuidv4();
+  const firstMessage =
+    "Demo Skip enabled. Skipping counselling and preparing your practice now.";
+
+  const session: SessionState = {
+    sessionId,
+    createdAt: new Date().toISOString(),
+    status: "finalizing",
+    history: [{ role: "assistant", content: firstMessage }],
+    plan: null,
+    error: null,
+  };
+
+  sessionStore.set(sessionId, session);
+
+  generateSessionPlan(sessionId, DEMO_FINALIZE_ARGS).catch((err: Error) => {
+    const s = sessionStore.get(sessionId);
+    if (s) {
+      s.status = "error";
+      s.error = err.message;
+      sessionStore.set(sessionId, s);
+    }
+  });
+
+  return { sessionId, firstMessage, status: "finalizing" };
 }
 
 // ─── Process User Message ─────────────────────────────────────────────────────

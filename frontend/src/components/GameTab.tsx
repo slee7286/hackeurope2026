@@ -64,6 +64,12 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId, speechRate 
   }, [plan]);
 
   useEffect(() => {
+    if (engine.status === 'loaded') {
+      engine.start();
+    }
+  }, [engine.status, engine.start]);
+
+  useEffect(() => {
     if (engine.status === 'presenting') {
       setAnswer('');
       setSubmitted(false);
@@ -155,6 +161,11 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId, speechRate 
     engine.submitAnswer(answer.trim());
   }, [answer, submitted, engine, tts]);
 
+  const handleDemoSkip = useCallback(() => {
+    tts.stop();
+    engine.skipSection();
+  }, [engine, tts]);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter') {
@@ -227,42 +238,6 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId, speechRate 
     );
   }
 
-  if (engine.status === 'loaded' && engine.plan) {
-    const p = engine.plan;
-    const totalItems = p.therapyBlocks.reduce((sum, b) => sum + b.items.length, 0);
-    return (
-      <div className="surface-panel fade-in">
-        <h2 className="panel-title">Session plan ready</h2>
-        <div className="game-plan-meta">
-          <span>{p.therapyBlocks.length} exercises</span>
-          <span aria-hidden="true">.</span>
-          <span>{totalItems} prompts</span>
-          <span aria-hidden="true">.</span>
-          <span>Difficulty: {p.patientProfile.difficulty}</span>
-          <span aria-hidden="true">.</span>
-          <span>~{p.sessionMetadata.estimatedDurationMinutes} min</span>
-        </div>
-        <div className="game-block-list">
-          {p.therapyBlocks.map((b) => (
-            <div key={b.blockId} className="game-block-preview">
-              <span className="game-block-badge">
-                {BLOCK_TYPE_LABELS[b.type] ?? b.type}
-              </span>
-              <span className="game-block-topic">{b.topic}</span>
-            </div>
-          ))}
-        </div>
-        <button
-          className="btn-primary"
-          style={{ marginTop: 24, fontSize: 'var(--font-size-lg)' }}
-          onClick={engine.start}
-        >
-          Begin Practice
-        </button>
-      </div>
-    );
-  }
-
   if (engine.status === 'presenting' && engine.plan) {
     const block = engine.plan.therapyBlocks[engine.blockIndex];
     const item = block?.items[engine.itemIndex];
@@ -289,6 +264,40 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId, speechRate 
         </div>
 
         <div className="game-topic-row">{block.topic}</div>
+
+        <details>
+          <summary
+            style={{
+              cursor: 'pointer',
+              color: 'var(--color-primary)',
+              fontSize: 'var(--font-size-sm)',
+              fontWeight: 700,
+            }}
+          >
+            View practice summary (optional)
+          </summary>
+          <>
+            <div className="game-plan-meta" style={{ marginTop: 12 }}>
+              <span>{engine.plan.therapyBlocks.length} exercises</span>
+              <span aria-hidden="true">.</span>
+              <span>{totalItems} prompts</span>
+              <span aria-hidden="true">.</span>
+              <span>Difficulty: {engine.plan.patientProfile.difficulty}</span>
+              <span aria-hidden="true">.</span>
+              <span>~{engine.plan.sessionMetadata.estimatedDurationMinutes} min</span>
+            </div>
+            <div className="game-block-list">
+              {engine.plan.therapyBlocks.map((b) => (
+                <div key={b.blockId} className="game-block-preview">
+                  <span className="game-block-badge">
+                    {BLOCK_TYPE_LABELS[b.type] ?? b.type}
+                  </span>
+                  <span className="game-block-topic">{b.topic}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        </details>
 
         <div className="game-audio-section">
           <div className="game-section-label">Prompt</div>
@@ -431,9 +440,14 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId, speechRate 
           </div>
         )}
 
-        <button className="btn-ghost game-end-early-btn" onClick={engine.end}>
-          End session
-        </button>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button className="btn-secondary game-end-early-btn" onClick={handleDemoSkip}>
+            Demo Skip
+          </button>
+          <button className="btn-ghost game-end-early-btn" onClick={engine.end}>
+            End session
+          </button>
+        </div>
       </div>
     );
   }

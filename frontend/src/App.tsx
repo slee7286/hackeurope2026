@@ -16,7 +16,7 @@ const VOICE_STORAGE_KEY = 'therapy.selected_voice_id';
 const CAPTIONS_STORAGE_KEY = 'therapy.captions_enabled';
 const SPEECH_RATE_STORAGE_KEY = 'therapy.speech_rate';
 
-type View = 'home' | 'session' | 'history' | 'admin' | 'game';
+type View = 'home' | 'session' | 'history' | 'admin';
 
 export default function App() {
   const [view, setView] = useState<View>('home');
@@ -35,7 +35,7 @@ export default function App() {
     () => localStorage.getItem(CAPTIONS_STORAGE_KEY) !== '0'
   );
 
-  const { state, start, send } = useSession();
+  const { state, start, send, demoSkip } = useSession();
   const stt = useSpeechToText();
   const tts = useTextToSpeech();
 
@@ -74,6 +74,11 @@ export default function App() {
     await start();
   }, [start]);
 
+  const handleDemoSkip = useCallback(async () => {
+    setView('session');
+    await demoSkip();
+  }, [demoSkip]);
+
   return (
     <Layout showBackButton={view !== 'home'} onBackButtonClick={() => setView('home')}>
       {view === 'home' && (
@@ -86,9 +91,6 @@ export default function App() {
             </button>
             <button onClick={() => setView('history')} className="btn-secondary home-btn">
               Session history
-            </button>
-            <button onClick={() => setView('game')} className="btn-secondary home-btn" disabled={!planReady}>
-              Practice game
             </button>
             <button
               onClick={() => setView('admin')}
@@ -131,6 +133,9 @@ export default function App() {
                 <div className="session-start-actions">
                   <button onClick={handleStartSession} className="btn-primary">
                     Check into session
+                  </button>
+                  <button onClick={handleDemoSkip} className="btn-secondary">
+                    Demo Skip
                   </button>
                   <button onClick={() => setView('admin')} className="btn-secondary">
                     Admin settings
@@ -197,48 +202,46 @@ export default function App() {
                   />
                 </div>
 
-                <ChatInterface
-                  messages={state.messages}
-                  status={state.status}
-                  plan={state.plan}
-                  isLoading={state.isLoading}
-                  onSend={send}
-                  voiceInput={pendingVoiceInput}
-                  onVoiceInputConsumed={handleVoiceInputConsumed}
-                  tts={tts}
-                  selectedVoiceId={selectedVoiceId}
-                  speechRate={speechRate}
-                />
+                {planReady ? (
+                  <GameTab
+                    plan={state.plan}
+                    onGoHome={() => setView('home')}
+                    tts={tts}
+                    stt={stt}
+                    selectedVoiceId={selectedVoiceId}
+                    speechRate={speechRate}
+                  />
+                ) : (
+                  <>
+                    <ChatInterface
+                      messages={state.messages}
+                      status={state.status}
+                      isLoading={state.isLoading}
+                      onSend={send}
+                      voiceInput={pendingVoiceInput}
+                      onVoiceInputConsumed={handleVoiceInputConsumed}
+                      tts={tts}
+                      selectedVoiceId={selectedVoiceId}
+                      speechRate={speechRate}
+                    />
 
-                <VoiceControls
-                  stt={stt}
-                  onTranscriptReady={handleTranscriptReady}
-                  disabled={state.isLoading || state.status === 'completed' || state.status === 'finalizing'}
-                />
-
-                {planReady && (
-                  <div style={{ textAlign: 'center', paddingTop: 4 }}>
-                    <button className="btn-primary" style={{ fontSize: 'var(--font-size-lg)', padding: '0.65em 2em' }} onClick={() => setView('game')}>
-                      Start practice
-                    </button>
-                  </div>
+                    <VoiceControls
+                      stt={stt}
+                      onTranscriptReady={handleTranscriptReady}
+                      disabled={state.isLoading || state.status === 'completed' || state.status === 'finalizing'}
+                    />
+                    {state.status === 'ongoing' && (
+                      <div style={{ textAlign: 'right' }}>
+                        <button className="btn-secondary" onClick={handleDemoSkip}>
+                          Demo Skip
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             )}
           </div>
-        </section>
-      )}
-
-      {view === 'game' && (
-        <section className="fade-in">
-          <GameTab
-            plan={state.plan}
-            onGoHome={() => setView('home')}
-            tts={tts}
-            stt={stt}
-            selectedVoiceId={selectedVoiceId}
-            speechRate={speechRate}
-          />
         </section>
       )}
     </Layout>
