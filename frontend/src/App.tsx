@@ -3,30 +3,34 @@ import { Layout } from './components/Layout';
 import { PatientHeader } from './components/PatientHeader';
 import { ChatInterface } from './components/ChatInterface';
 import { VoiceControls } from './components/VoiceControls';
+import { SessionHistory } from './components/SessionHistory';
+import { AdminVoiceSettings } from './components/AdminVoiceSettings';
 import { GameTab } from './components/GameTab';
 import { useSession } from './hooks/useSession';
 import { useSpeechToText } from './hooks/useSpeechToText';
 import { useTextToSpeech } from './hooks/useTextToSpeech';
 
-// TODO: Replace with the patient's saved voice preference fetched from backend.
-// ElevenLabs voice IDs can be browsed at: https://elevenlabs.io/voice-library
-const SELECTED_VOICE_ID = 'EXAVITQu4vr4xnSDxMaL'; // Rachel — calm, clear
+const DEFAULT_VOICE_ID = 'fVVjLtJgnQI61CoImgHU';
+const VOICE_STORAGE_KEY = 'therapy.selected_voice_id';
 
-type View = 'session' | 'game';
+type View = 'home' | 'session' | 'history' | 'admin' | 'game';
 
 export default function App() {
-  const [view, setView] = useState<View>('session');
+  const [view, setView] = useState<View>('home');
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string>(
+    () => localStorage.getItem(VOICE_STORAGE_KEY) ?? DEFAULT_VOICE_ID
+  );
+
   const { state, start, send } = useSession();
   const stt = useSpeechToText();
   const tts = useTextToSpeech();
 
-  // Bridge: voice transcript → chat input pre-fill
   const [pendingVoiceInput, setPendingVoiceInput] = useState('');
 
   const handleTranscriptReady = useCallback(
     (text: string) => {
       setPendingVoiceInput(text);
-      stt.clearTranscript(); // Reset so the effect won't re-fire
+      stt.clearTranscript();
     },
     [stt]
   );
@@ -35,174 +39,156 @@ export default function App() {
     setPendingVoiceInput('');
   }, []);
 
-  const sessionActive =
-    state.status !== 'idle' && state.status !== 'starting';
+  const handleApplyVoice = useCallback((nextVoiceId: string) => {
+    setSelectedVoiceId(nextVoiceId);
+    localStorage.setItem(VOICE_STORAGE_KEY, nextVoiceId);
+    setView('home');
+  }, []);
 
+  const sessionActive = state.status !== 'idle' && state.status !== 'starting';
   const planReady = state.status === 'completed' && !!state.plan;
 
+  const handleStartSession = useCallback(async () => {
+    setView('session');
+    await start();
+  }, [start]);
+
   return (
-    <Layout>
-      {/* ── Patient header + Duolingo-style progress ───────────────────── */}
-      <PatientHeader patientId={state.patientId} />
-
-      {/* ── Tab bar ───────────────────────────────────────────────────── */}
-      <div className="app-tab-bar">
-        <button
-          className={`app-tab${view === 'session' ? ' active' : ''}`}
-          onClick={() => setView('session')}
-        >
-          Check-in
-        </button>
-        <button
-          className={`app-tab${view === 'game' ? ' active' : ''}`}
-          onClick={() => setView('game')}
-          disabled={!planReady && view !== 'game'}
-          title={planReady ? undefined : 'Complete a check-in session to unlock practice'}
-        >
-          Practice
-          {planReady && <span className="app-tab-dot" aria-hidden="true" />}
-        </button>
-      </div>
-
-      {/* ── Session / Check-in view ────────────────────────────────────── */}
-      {view === 'session' && (
-        <>
-          {/* Session start screen */}
-          {state.status === 'idle' && (
-            <div
-              style={{
-                textAlign: 'center',
-                padding: '28px 0 10px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '12px',
-              }}
+    <Layout showBackButton={view !== 'home'} onBackButtonClick={() => setView('home')}>
+      {view === 'home' && (
+        <section className="surface-panel fade-in">
+          <h2 className="panel-title">Welcome</h2>
+          <p className="panel-copy">Select what you would like to do.</p>
+          <div className="home-actions">
+            <button onClick={handleStartSession} className="btn-primary home-btn">
+              Check into session
+            </button>
+            <button onClick={() => setView('history')} className="btn-secondary home-btn">
+              Session history
+            </button>
+            <button onClick={() => setView('game')} className="btn-secondary home-btn" disabled={!planReady}>
+              Practice game
+            </button>
+            <button
+              onClick={() => setView('admin')}
+              className="admin-fab"
+              aria-label="Open admin voice settings"
+              title="Admin voice settings"
             >
-              <div
-                style={{
-                  fontSize: 'var(--font-size-base)',
-                  color: 'var(--color-text-muted)',
-                  maxWidth: '400px',
-                }}
-              >
-                Press the button to start your session. We will ask a few short questions first.
-              </div>
-              <button
-                onClick={start}
-                style={{
-                  background: 'var(--color-accent)',
-                  color: '#fff',
-                  fontSize: 'var(--font-size-xl)',
-                  padding: '0.65em 2.2em',
-                  borderRadius: 'var(--radius)',
-                  boxShadow: 'var(--shadow)',
-                }}
-              >
-                Start session
-              </button>
-            </div>
-          )}
-
-          {state.status === 'starting' && (
-            <div
-              style={{
-                textAlign: 'center',
-                color: 'var(--color-text-muted)',
-                padding: '24px 0',
-                fontSize: 'var(--font-size-lg)',
-              }}
-            >
-              Getting ready…
-            </div>
-          )}
-
-          {/* Error notice */}
-          {state.error && (
-            <div
-              style={{
-                background: '#fef2f2',
-                border: '2px solid var(--color-danger)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '12px 16px',
-                color: 'var(--color-danger)',
-                fontWeight: 600,
-                fontSize: 'var(--font-size-base)',
-              }}
-              role="alert"
-            >
-              {state.error}
-            </div>
-          )}
-
-          {/* TTS error notice */}
-          {tts.error && (
-            <div
-              style={{
-                background: '#fff7ed',
-                border: '1.5px solid var(--color-warning)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '8px 14px',
-                color: 'var(--color-warning)',
-                fontSize: 'var(--font-size-sm)',
-              }}
-              role="alert"
-            >
-              Audio: {tts.error}
-            </div>
-          )}
-
-          {/* Chat + voice controls */}
-          {sessionActive && (
-            <>
-              <ChatInterface
-                messages={state.messages}
-                status={state.status}
-                plan={state.plan}
-                isLoading={state.isLoading}
-                onSend={send}
-                voiceInput={pendingVoiceInput}
-                onVoiceInputConsumed={handleVoiceInputConsumed}
-                tts={tts}
-                selectedVoiceId={SELECTED_VOICE_ID}
-              />
-
-              <VoiceControls
-                stt={stt}
-                onTranscriptReady={handleTranscriptReady}
-                disabled={
-                  state.isLoading ||
-                  state.status === 'completed' ||
-                  state.status === 'finalizing'
-                }
-              />
-
-              {/* CTA: navigate to practice once plan is ready */}
-              {planReady && (
-                <div style={{ textAlign: 'center', paddingTop: 4 }}>
-                  <button
-                    className="btn-primary"
-                    style={{ fontSize: 'var(--font-size-lg)', padding: '0.65em 2em' }}
-                    onClick={() => setView('game')}
-                  >
-                    Start Practice →
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <circle cx="9" cy="8" r="3" />
+                <path d="M4 18a5 5 0 0 1 10 0v1H4v-1z" />
+                <path d="M16 9c1.1.4 2 1.5 2 2.8S17.1 14.2 16 14.6" />
+                <path d="M18.5 7.5c2 1 3.2 2.8 3.2 4.3s-1.2 3.3-3.2 4.3" />
+              </svg>
+            </button>
+          </div>
+          <p className="voice-chip">Current voice ID: {selectedVoiceId}</p>
+        </section>
       )}
 
-      {/* ── Practice / Game view ───────────────────────────────────────── */}
+      {view === 'admin' && <AdminVoiceSettings currentVoiceId={selectedVoiceId} onApply={handleApplyVoice} />}
+
+      {view === 'history' && (
+        <section className="fade-in">
+          <SessionHistory />
+        </section>
+      )}
+
+      {view === 'session' && (
+        <section className="fade-in session-flow">
+          <PatientHeader patientId={state.patientId} />
+          <div className="surface-panel session-panel">
+            {state.status === 'idle' && (
+              <div className="session-start">
+                <p className="panel-copy">Press the button to start your session.</p>
+                <div className="session-start-actions">
+                  <button onClick={handleStartSession} className="btn-primary">
+                    Check into session
+                  </button>
+                  <button onClick={() => setView('admin')} className="btn-secondary">
+                    Admin settings
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {state.status === 'starting' && <div className="session-loading">Getting ready...</div>}
+
+            {state.error && (
+              <div
+                style={{
+                  background: '#fff4f4',
+                  border: '2px solid var(--color-danger)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '12px 16px',
+                  color: 'var(--color-danger)',
+                  fontWeight: 600,
+                  fontSize: 'var(--font-size-base)',
+                }}
+              >
+                {state.error}
+              </div>
+            )}
+
+            {tts.error && (
+              <div
+                style={{
+                  background: '#fff7ed',
+                  border: '1.5px solid var(--color-warning)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '8px 14px',
+                  color: 'var(--color-warning)',
+                  fontSize: 'var(--font-size-sm)',
+                }}
+              >
+                Audio: {tts.error}
+              </div>
+            )}
+
+            {sessionActive && (
+              <>
+                <ChatInterface
+                  messages={state.messages}
+                  status={state.status}
+                  plan={state.plan}
+                  isLoading={state.isLoading}
+                  onSend={send}
+                  voiceInput={pendingVoiceInput}
+                  onVoiceInputConsumed={handleVoiceInputConsumed}
+                  tts={tts}
+                  selectedVoiceId={selectedVoiceId}
+                />
+
+                <VoiceControls
+                  stt={stt}
+                  onTranscriptReady={handleTranscriptReady}
+                  disabled={state.isLoading || state.status === 'completed' || state.status === 'finalizing'}
+                />
+
+                {planReady && (
+                  <div style={{ textAlign: 'center', paddingTop: 4 }}>
+                    <button className="btn-primary" style={{ fontSize: 'var(--font-size-lg)', padding: '0.65em 2em' }} onClick={() => setView('game')}>
+                      Start practice
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </section>
+      )}
+
       {view === 'game' && (
-        <GameTab
-          plan={state.plan}
-          onGoHome={() => setView('session')}
-          tts={tts}
-          stt={stt}
-          selectedVoiceId={SELECTED_VOICE_ID}
-        />
+        <section className="fade-in">
+          <GameTab
+            plan={state.plan}
+            onGoHome={() => setView('home')}
+            tts={tts}
+            stt={stt}
+            selectedVoiceId={selectedVoiceId}
+          />
+        </section>
       )}
     </Layout>
   );

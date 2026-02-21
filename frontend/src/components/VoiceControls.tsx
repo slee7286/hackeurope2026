@@ -22,6 +22,7 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
         background: 'var(--color-surface)',
         borderRadius: 'var(--radius)',
         boxShadow: 'var(--shadow)',
+        border: '1px solid var(--color-border)',
         padding: '16px 20px',
         display: 'flex',
         alignItems: 'center',
@@ -114,7 +115,6 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
         </div>
       )}
 
-      {/* Error */}
       {stt.error && (
         <div
           style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)' }}
@@ -128,13 +128,13 @@ export function VoiceControls({ stt, onTranscriptReady, disabled }: VoiceControl
       <div
         style={{
           marginLeft: 'auto',
-          fontSize: '13px',
-          color: 'var(--color-text-muted)',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        Google Speech-to-Text
-      </div>
+        fontSize: '13px',
+        color: 'var(--color-text-muted)',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      Google Speech-to-Text
     </div>
-  );
+  </div>
+);
 }

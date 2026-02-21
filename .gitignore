@@ -1,17 +1,16 @@
-# -----------------------
 # Node / JavaScript
-# -----------------------
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Package manager caches.npm/.yarn/.pnpm-store/
+# Package manager caches
+.npm/
+.yarn/
+.pnpm-store/
 
-# -----------------------
 # TypeScript / Build
-# -----------------------
 dist/
 build/
 out/
@@ -19,36 +18,31 @@ tmp/
 temp/
 *.tsbuildinfo
 
-# If frontend has its own build dir
+# Frontend build artifacts
 frontend/dist/
 frontend/build/
 frontend/node_modules/
 
-# -----------------------
 # Environment & Secrets
-# -----------------------.env.env.*.local
-*.env.local
 .env
+.env.*
+*.env
+*.env.local
 
-# -----------------------
 # IDE / Editor
-# -----------------------.idea/.vscode/
+.idea/
+.vscode/
 *.swp
 *.swo
 
-# -----------------------
 # OS / Misc
-# -----------------------.DS_Store
+.DS_Store
 Thumbs.db
 
-# -----------------------
 # Testing / Coverage
-# -----------------------
-coverage/.nyc_output/
+coverage/
+.nyc_output/
 
-# -----------------------
 # Logs
-# -----------------------
 logs/
 *.log
-.log.
