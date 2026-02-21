@@ -1,9 +1,11 @@
 import React, { useState, useCallback } from 'react';
 import { Layout } from './components/Layout';
+import { PatientHeader } from './components/PatientHeader';
 import { ChatInterface } from './components/ChatInterface';
 import { VoiceControls } from './components/VoiceControls';
 import { SessionHistory } from './components/SessionHistory';
 import { AdminVoiceSettings } from './components/AdminVoiceSettings';
+import { GameTab } from './components/GameTab';
 import { useSession } from './hooks/useSession';
 import { useSpeechToText } from './hooks/useSpeechToText';
 import { useTextToSpeech } from './hooks/useTextToSpeech';
@@ -11,7 +13,7 @@ import { useTextToSpeech } from './hooks/useTextToSpeech';
 const DEFAULT_VOICE_ID = 'fVVjLtJgnQI61CoImgHU';
 const VOICE_STORAGE_KEY = 'therapy.selected_voice_id';
 
-type View = 'home' | 'session' | 'history' | 'admin';
+type View = 'home' | 'session' | 'history' | 'admin' | 'game';
 
 export default function App() {
   const [view, setView] = useState<View>('home');
@@ -44,6 +46,7 @@ export default function App() {
   }, []);
 
   const sessionActive = state.status !== 'idle' && state.status !== 'starting';
+  const planReady = state.status === 'completed' && !!state.plan;
 
   const handleStartSession = useCallback(async () => {
     setView('session');
@@ -62,6 +65,9 @@ export default function App() {
             </button>
             <button onClick={() => setView('history')} className="btn-secondary home-btn">
               Session history
+            </button>
+            <button onClick={() => setView('game')} className="btn-secondary home-btn" disabled={!planReady}>
+              Practice game
             </button>
             <button
               onClick={() => setView('admin')}
@@ -91,6 +97,7 @@ export default function App() {
 
       {view === 'session' && (
         <section className="fade-in session-flow">
+          <PatientHeader patientId={state.patientId} />
           <div className="surface-panel session-panel">
             {state.status === 'idle' && (
               <div className="session-start">
@@ -158,12 +165,31 @@ export default function App() {
                   onTranscriptReady={handleTranscriptReady}
                   disabled={state.isLoading || state.status === 'completed' || state.status === 'finalizing'}
                 />
+
+                {planReady && (
+                  <div style={{ textAlign: 'center', paddingTop: 4 }}>
+                    <button className="btn-primary" style={{ fontSize: 'var(--font-size-lg)', padding: '0.65em 2em' }} onClick={() => setView('game')}>
+                      Start practice
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>
         </section>
       )}
+
+      {view === 'game' && (
+        <section className="fade-in">
+          <GameTab
+            plan={state.plan}
+            onGoHome={() => setView('home')}
+            tts={tts}
+            stt={stt}
+            selectedVoiceId={selectedVoiceId}
+          />
+        </section>
+      )}
     </Layout>
   );
 }
-

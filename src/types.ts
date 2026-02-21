@@ -19,6 +19,12 @@ export type Mood =
 export interface TherapyItem {
   prompt: string;
   answer: string;
+  /**
+   * Only present on picture_description items.
+   * 3 alternative noun labels used to fetch distractor images via Bing Image Search.
+   * Example: if answer is "cat", distractors might be ["dog", "bird", "fish"].
+   */
+  distractors?: string[];
 }
 
 export interface TherapyBlock {
