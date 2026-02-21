@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Layout } from './components/Layout';
 import { VoiceControls } from './components/VoiceControls';
 import { SessionHistory } from './components/SessionHistory';
@@ -33,6 +33,7 @@ export default function App() {
   const [captionsEnabled, setCaptionsEnabled] = useState<boolean>(
     () => localStorage.getItem(CAPTIONS_STORAGE_KEY) !== '0'
   );
+  const lastAutoPlayedAiMessageIndexRef = useRef(-1);
 
   const { state, start, send } = useSession();
   const stt = useSpeechToText();
@@ -64,6 +65,27 @@ export default function App() {
   const sessionActive = state.status !== 'idle' && state.status !== 'starting';
   const planReady = state.status === 'completed' && !!state.plan;
   const latestAiMessage = [...state.messages].reverse().find((message) => message.role === 'ai')?.text ?? '';
+
+  useEffect(() => {
+    if (view !== 'session') return;
+
+    let latestAiMessageIndex = -1;
+    for (let i = state.messages.length - 1; i >= 0; i -= 1) {
+      if (state.messages[i].role === 'ai') {
+        latestAiMessageIndex = i;
+        break;
+      }
+    }
+
+    if (latestAiMessageIndex < 0) return;
+    if (latestAiMessageIndex === lastAutoPlayedAiMessageIndexRef.current) return;
+
+    const nextAiMessage = state.messages[latestAiMessageIndex]?.text?.trim();
+    if (!nextAiMessage) return;
+
+    lastAutoPlayedAiMessageIndexRef.current = latestAiMessageIndex;
+    void tts.speak(nextAiMessage, selectedVoiceId, speechRate);
+  }, [view, state.messages, selectedVoiceId, speechRate, tts]);
 
   const handleStartSession = useCallback(async () => {
     setView('session');
@@ -199,10 +221,10 @@ export default function App() {
                     <button
                       className="btn-primary"
                       onClick={() => tts.speak(latestAiMessage, selectedVoiceId, speechRate)}
-                      disabled={!latestAiMessage || tts.isPlaying || state.isLoading}
-                      title="Play latest AI response"
+                      disabled={!latestAiMessage || tts.isPlaying}
+                      title="Repeat the latest AI response"
                     >
-                      {tts.isPlaying ? 'Playing...' : 'Play latest response'}
+                      {tts.isPlaying ? 'Playing...' : 'Repeat response'}
                     </button>
                   </div>
                   <p>Use hold-to-talk for input. AI replies are delivered as audio.</p>
