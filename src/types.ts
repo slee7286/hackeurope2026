@@ -109,7 +109,6 @@ export interface GetPlanResponse {
 export interface FinalizeSessionArgs {
   mood: Mood;
   interests: string[];
-  difficulty: Difficulty;
   notes: string;
   estimatedDurationMinutes: number;
 }

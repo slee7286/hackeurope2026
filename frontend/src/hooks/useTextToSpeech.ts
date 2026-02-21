@@ -12,7 +12,7 @@ export interface UseTextToSpeechResult {
   currentAudio: HTMLAudioElement | null;
   currentText: string | null;
   currentWordTimings: SpokenWordTiming[];
-  speak: (text: string, voiceId: string) => Promise<void>;
+  speak: (text: string, voiceId: string, speechRate?: number) => Promise<void>;
   stop: () => void;
 }
 
@@ -54,10 +54,25 @@ function sanitizeWordTimings(value: unknown): SpokenWordTiming[] {
     .filter((item): item is SpokenWordTiming => item !== null);
 }
 
+function addPauseForWordPrompt(text: string): string {
+  const normalized = text.trim();
+  const wordPromptMatch = normalized.match(/^say this word\s*:\s*(.+)$/i);
+  if (!wordPromptMatch) {
+    return text;
+  }
+
+  const targetWord = wordPromptMatch[1].trim();
+  if (!targetWord) {
+    return text;
+  }
+
+  return `Say this word... ${targetWord}`;
+}
+
 /**
  * useTextToSpeech
  *
- * Sends text to POST /api/tts (backend proxy → ElevenLabs) and plays
+ * Sends text to POST /api/tts (backend proxy -> ElevenLabs) and plays
  * the returned audio/mpeg in the browser.
  *
  * Backend setup (see src/routes/tts.ts):
@@ -95,9 +110,10 @@ export function useTextToSpeech(): UseTextToSpeechResult {
   }, []);
 
   const speak = useCallback(
-    async (text: string, voiceId: string) => {
+    async (text: string, voiceId: string, speechRate = 0.8) => {
       stop(); // Cancel any currently playing audio
       setError(null);
+      const textForTts = addPauseForWordPrompt(text);
 
       try {
         setCurrentText(text);
@@ -108,7 +124,7 @@ export function useTextToSpeech(): UseTextToSpeechResult {
         const withTimestampsResponse = await fetch('/api/tts/with-timestamps', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text, voiceId }),
+          body: JSON.stringify({ text: textForTts, voiceId, speechRate }),
         });
 
         if (withTimestampsResponse.ok) {
@@ -124,7 +140,7 @@ export function useTextToSpeech(): UseTextToSpeechResult {
           const res = await fetch('/api/tts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text, voiceId }),
+            body: JSON.stringify({ text: textForTts, voiceId, speechRate }),
           });
 
           if (!res.ok) {

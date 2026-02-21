@@ -134,16 +134,17 @@ ttsRouter.get(
 );
 /**
  * POST /api/tts
- * Body: { text: string; voiceId?: string; voice_id?: string }
+ * Body: { text: string; voiceId?: string; voice_id?: string; speechRate?: number }
  */
 ttsRouter.post(
   "/",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { text, voiceId, voice_id } = req.body as {
+      const { text, voiceId, voice_id, speechRate } = req.body as {
         text?: string;
         voiceId?: string;
         voice_id?: string;
+        speechRate?: number;
       };
 
       if (!text || typeof text !== "string" || !text.trim()) {
@@ -166,6 +167,11 @@ ttsRouter.post(
         "fVVjLtJgnQI61CoImgHU";
 
       const modelId = process.env.ELEVENLABS_MODEL_ID ?? "eleven_flash_v2_5";
+      const requestedSpeechRate =
+        typeof speechRate === "number" && Number.isFinite(speechRate)
+          ? speechRate
+          : 1;
+      const clampedSpeechRate = Math.min(1.2, Math.max(0.7, requestedSpeechRate));
 
       const elevenRes = await fetch(
         `https://api.elevenlabs.io/v1/text-to-speech/${targetVoiceId}`,
@@ -182,6 +188,7 @@ ttsRouter.post(
             voice_settings: {
               stability: 0.75,
               similarity_boost: 0.75,
+              speed: clampedSpeechRate,
             },
           }),
         }
@@ -196,6 +203,7 @@ ttsRouter.post(
       res.setHeader("Content-Type", "audio/mpeg");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("X-Voice-Id", targetVoiceId);
+      res.setHeader("X-Speech-Rate", String(clampedSpeechRate));
       res.send(Buffer.from(audioBuffer));
     } catch (err) {
       next(err);
