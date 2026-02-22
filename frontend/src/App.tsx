@@ -54,13 +54,18 @@ export default function App() {
   const orbPreviousRectRef = useRef<DOMRect | null>(null);
   const orbTransitionCleanupTimerRef = useRef<number | null>(null);
   const wasPlanReadyRef = useRef(false);
+  const wasPlanAvailableRef = useRef(false);
+  const transitionMessageRef = useRef<string | null>(null);
+  const transitionMessageStartedRef = useRef(false);
+  const [isPracticeUnlocked, setIsPracticeUnlocked] = useState(false);
 
   const { state, start, send, demoSkip } = useSession();
   const stt = useSpeechToText();
   const tts = useTextToSpeech();
   const { speak } = tts;
   const sessionActive = state.status !== 'idle' && state.status !== 'starting';
-  const planReady = state.status === 'completed' && !!state.plan;
+  const planAvailable = state.status === 'completed' && !!state.plan;
+  const planReady = planAvailable && isPracticeUnlocked;
   const sessionMode: 'checkin' | 'practice' = view === 'session' && planReady ? 'practice' : 'checkin';
   const latestAiMessage = [...state.messages].reverse().find((message) => message.role === 'ai')?.text ?? '';
 
@@ -73,9 +78,12 @@ export default function App() {
         setPracticeVoiceInput(trimmed);
         return;
       }
+      if (state.status === 'completed') {
+        return;
+      }
       void send(trimmed);
     },
-    [planReady, send, stt]
+    [planReady, send, state.status, stt]
   );
 
   const handlePracticeVoiceInputConsumed = useCallback(() => {
@@ -130,6 +138,48 @@ export default function App() {
     lastAutoPlayedAiMessageKeyRef.current = nextAiMessageKey;
     void speak(nextAiMessage, selectedVoiceId, speechRate);
   }, [view, state.messages, state.sessionId, selectedVoiceId, speechRate, speak]);
+
+  useEffect(() => {
+    const becameAvailable = planAvailable && !wasPlanAvailableRef.current;
+
+    if (becameAvailable) {
+      setIsPracticeUnlocked(false);
+      transitionMessageRef.current = latestAiMessage.trim() || null;
+      transitionMessageStartedRef.current = false;
+    } else if (!planAvailable) {
+      setIsPracticeUnlocked(false);
+      transitionMessageRef.current = null;
+      transitionMessageStartedRef.current = false;
+    }
+
+    wasPlanAvailableRef.current = planAvailable;
+  }, [planAvailable, latestAiMessage]);
+
+  useEffect(() => {
+    if (!planAvailable || isPracticeUnlocked) return;
+
+    const transitionMessage = transitionMessageRef.current;
+    if (!transitionMessage) {
+      setIsPracticeUnlocked(true);
+      return;
+    }
+
+    const currentSpeechText = tts.currentText?.trim() ?? '';
+    if (!transitionMessageStartedRef.current && currentSpeechText === transitionMessage) {
+      transitionMessageStartedRef.current = true;
+      return;
+    }
+
+    if (
+      transitionMessageStartedRef.current &&
+      !tts.isPlaying &&
+      currentSpeechText !== transitionMessage
+    ) {
+      setIsPracticeUnlocked(true);
+      transitionMessageRef.current = null;
+      transitionMessageStartedRef.current = false;
+    }
+  }, [isPracticeUnlocked, planAvailable, tts.currentText, tts.isPlaying]);
 
   useLayoutEffect(() => {
     const orbMotionNode = orbMotionRef.current;
@@ -373,7 +423,11 @@ export default function App() {
                   <VoiceControls
                     stt={stt}
                     onTranscriptReady={handleTranscriptReady}
-                    disabled={state.isLoading || state.status === 'finalizing'}
+                    disabled={
+                      state.isLoading ||
+                      state.status === 'finalizing' ||
+                      (planAvailable && !isPracticeUnlocked)
+                    }
                     embedded
                     buttonsOnly
                   />
