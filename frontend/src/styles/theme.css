@@ -45,7 +45,7 @@ body {
   color: var(--color-text);
   background:
     radial-gradient(circle at 10% 10%, rgba(90, 112, 216, 0.2), transparent 42%),
-    radial-gradient(circle at 88% 16%, rgba(79, 200, 189, 0.2), transparent 44%),
+    radial-gradient(circle at 88% 16%, rgba(248, 247, 242, 0.72), transparent 44%),
     radial-gradient(circle at 46% -10%, rgba(158, 173, 255, 0.28), transparent 40%),
     var(--color-bg);
   -webkit-font-smoothing: antialiased;
@@ -113,9 +113,9 @@ textarea:disabled {
 
 .app-shell--practice {
   background:
-    radial-gradient(circle at 18% 14%, rgba(158, 173, 255, 0.3), transparent 44%),
-    radial-gradient(circle at 85% 16%, rgba(79, 200, 189, 0.24), transparent 46%),
-    linear-gradient(135deg, #eef2ff 0%, #e5f8f5 100%);
+    radial-gradient(circle at 18% 14%, rgba(158, 173, 255, 0.32), transparent 44%),
+    radial-gradient(circle at 85% 16%, rgba(248, 247, 242, 0.8), transparent 48%),
+    linear-gradient(135deg, #eef2ff 0%, #f8f7f2 100%);
 }
 
 .app-container {
@@ -1079,6 +1079,15 @@ textarea:disabled {
   box-shadow: 0 2px 10px rgba(90, 112, 216, 0.22);
   opacity: 1;
   transform: none;
+}
+
+.game-picture-choice--selected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(90, 112, 216, 0.2);
+}
+
+.game-picture-choice--selected:disabled {
+  opacity: 1;
 }
 
 .game-picture-choice:disabled {

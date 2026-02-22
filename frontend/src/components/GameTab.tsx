@@ -321,14 +321,14 @@ export function GameTab({
 
         <div className="game-topic-row">{block.topic}</div>
 
-        <div className="game-audio-section">
-          <div className="game-section-label">Prompt</div>
+        {/* <div className="game-audio-section"> */}
+          {/* <div className="game-section-label">Prompt</div> */}
           {tts.error && (
             <div className="game-notice game-notice--error" role="alert">
               Audio unavailable: {tts.error}
             </div>
           )}
-        </div>
+        {/* </div> */}
 
         {isPictureBlock ? (
           <div className="game-answer-section">
