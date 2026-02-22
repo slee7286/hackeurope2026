@@ -889,6 +889,10 @@ textarea:disabled {
   align-items: stretch;
 }
 
+.game-input-row--center {
+  justify-content: center;
+}
+
 .game-answer-input {
   flex: 1;
   font-size: var(--font-size-lg) !important;

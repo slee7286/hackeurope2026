@@ -364,7 +364,7 @@ export function GameTab({
                     </button>
                   ))}
                 </div>
-                <div className="game-input-row">
+                <div className="game-input-row game-input-row--center">
                   <button
                     className="btn-primary"
                     onClick={handlePictureSubmit}
