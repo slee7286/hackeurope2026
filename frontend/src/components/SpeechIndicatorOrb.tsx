@@ -309,12 +309,14 @@ export function SpeechIndicatorOrb({
 
       if (core) {
         const scale = 1 + level * 0.42;
-        const glowSpread = 26 + level * 84;
-        const glowOpacity = phase === 'speaking' ? 0.26 + level * 0.26 : 0.14 + level * 0.14;
+        const glowSpread = 40 + level * 112;
+        const glowOpacity = phase === 'speaking' ? 0.34 + level * 0.28 : 0.2 + level * 0.18;
         core.style.transform = `translateZ(0) scale(${scale.toFixed(3)})`;
         core.style.boxShadow = `0 0 ${glowSpread.toFixed(1)}px rgba(33, 133, 255, ${glowOpacity.toFixed(
           3
-        )}), inset 0 0 ${(7 + level * 16).toFixed(1)}px rgba(255, 255, 255, ${(0.12 + level * 0.09).toFixed(3)})`;
+        )}), 0 0 ${(glowSpread * 0.55).toFixed(1)}px rgba(120, 170, 255, ${(glowOpacity * 0.72).toFixed(
+          3
+        )}), inset 0 0 ${(11 + level * 20).toFixed(1)}px rgba(255, 255, 255, ${(0.16 + level * 0.1).toFixed(3)})`;
       }
 
       if (innerCore) {

@@ -477,18 +477,33 @@ textarea:disabled {
   height: 100%;
   border-radius: 999px;
   background:
-    radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.82), rgba(201, 214, 255, 0.76) 24%, rgba(90, 112, 216, 0.92) 62%, rgba(72, 92, 190, 0.96)),
-    linear-gradient(165deg, rgba(158, 173, 255, 0.48), rgba(64, 154, 168, 0.22));
+    radial-gradient(
+      circle at 28% 24%,
+      rgba(255, 255, 255, 0.8),
+      rgba(206, 219, 255, 0.72) 30%,
+      rgba(102, 127, 223, 0.9) 64%,
+      rgba(84, 108, 204, 0.9) 78%,
+      rgba(72, 92, 190, 0.94)
+    ),
+    linear-gradient(165deg, rgba(158, 173, 255, 0.42), rgba(97, 137, 211, 0.24));
   overflow: hidden;
   will-change: transform, box-shadow;
 }
 
 .speech-orb-core-inner {
   position: absolute;
-  inset: 12%;
+  inset: 8%;
   border-radius: 999px;
-  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.92), rgba(187, 218, 255, 0.4) 58%, rgba(73, 120, 217, 0.14));
-  filter: blur(0.4px);
+  background: radial-gradient(
+    circle at 35% 30%,
+    rgba(255, 255, 255, 0.84) 0%,
+    rgba(206, 224, 255, 0.44) 52%,
+    rgba(125, 160, 234, 0.2) 72%,
+    rgba(125, 160, 234, 0) 88%
+  );
+  mix-blend-mode: screen;
+  opacity: 0.9;
+  filter: blur(2px);
   will-change: transform, opacity;
 }
 
