@@ -22,8 +22,8 @@ export function Layout({
           <div className="app-brand">
             <div className="brand-dot" aria-hidden="true" />
             <div>
-              <h1 className="brand-title">Speech Therapy</h1>
-              <p className="brand-subtitle">Care session workspace</p>
+              <h1 className="brand-title">Speech-Therapy.ai</h1>
+              <p className="brand-subtitle">Adaptive therapy, real progress</p>
             </div>
           </div>
           {showBackButton && onBackButtonClick && (
