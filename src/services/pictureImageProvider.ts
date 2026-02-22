@@ -116,26 +116,47 @@ function pickRandomDistinct(values: string[], count: number): string[] {
 
 async function searchUnsplashSimpleImages(query: string): Promise<UnsplashImage[]> {
   const accessKey = process.env.UNSPLASH_ACCESS_KEY;
-  if (!accessKey) return [];
+  if (!accessKey) {
+    console.warn("[Unsplash] Missing UNSPLASH_ACCESS_KEY");
+    return [];
+  }
 
   const url = new URL("https://api.unsplash.com/search/photos");
-  url.searchParams.set("query", query);
+  const queryText = query.trim();
+  url.searchParams.set("query", queryText);
+  url.searchParams.set("page", "1");
   url.searchParams.set("per_page", String(MAX_UPSTREAM_IMAGES));
   url.searchParams.set("content_filter", "high");
   url.searchParams.set("orientation", "squarish");
+  console.log(`[Unsplash] GET ${url.toString()}`);
 
   const response = await fetch(url.toString(), {
     headers: { Authorization: `Client-ID ${accessKey}` },
   });
-  if (!response.ok) return [];
+
+  const rateLimit = response.headers.get("x-ratelimit-remaining") ?? "unknown";
+  const rateLimitLimit = response.headers.get("x-ratelimit-limit") ?? "unknown";
+  console.log(
+    `[Unsplash] RESPONSE status=${response.status} statusText="${response.statusText}" rateRemaining=${rateLimit} rateLimit=${rateLimitLimit}`
+  );
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error(`[Unsplash] ERROR BODY ${errorBody}`);
+    return [];
+  }
 
   const payload = (await response.json()) as {
+    total?: number;
+    total_pages?: number;
     results?: Array<{
       urls?: { small?: string; regular?: string };
       alt_description?: string | null;
       description?: string | null;
     }>;
   };
+  console.log(
+    `[Unsplash] PARSED total=${payload.total ?? 0} totalPages=${payload.total_pages ?? 0} resultCount=${payload.results?.length ?? 0}`
+  );
 
   return (payload.results ?? [])
     .map((item) => ({
@@ -148,46 +169,6 @@ async function searchUnsplashSimpleImages(query: string): Promise<UnsplashImage[
     .filter((item) => Boolean(item.imageUrl));
 }
 
-async function searchWikipediaImages(query: string): Promise<PictureImage[]> {
-  const params = new URLSearchParams({
-    action: "query",
-    format: "json",
-    generator: "search",
-    gsrsearch: query,
-    gsrlimit: "24",
-    prop: "pageimages|info",
-    piprop: "thumbnail|original",
-    pithumbsize: "700",
-    inprop: "url",
-  });
-
-  const res = await fetch(`https://en.wikipedia.org/w/api.php?${params.toString()}`);
-  if (!res.ok) return [];
-
-  type WikiPage = {
-    thumbnail?: { source?: string };
-    original?: { source?: string };
-  };
-  const payload = (await res.json()) as { query?: { pages?: Record<string, WikiPage> } };
-
-  return Object.values(payload.query?.pages ?? {})
-    .map((page) => ({
-      imageUrl: page.original?.source ?? page.thumbnail?.source ?? "",
-    }))
-    .filter((img) => Boolean(img.imageUrl));
-}
-
-function dedupeImages(images: PictureImage[]): PictureImage[] {
-  const seen = new Set<string>();
-  const output: PictureImage[] = [];
-  for (const img of images) {
-    if (!img.imageUrl || seen.has(img.imageUrl)) continue;
-    seen.add(img.imageUrl);
-    output.push(img);
-  }
-  return output;
-}
-
 async function getConceptImage(concept: string, topic?: string): Promise<PictureImage | null> {
   const coreConcept = concept.trim();
   const coreTopic = topic?.trim() ?? "";
@@ -196,23 +177,19 @@ async function getConceptImage(concept: string, topic?: string): Promise<Picture
     combinedQuery || coreConcept,
     combinedQuery ? `${combinedQuery} photo` : `${coreConcept} photo`,
   ].filter(Boolean);
-  let fallbackImages: PictureImage[] = [];
   for (const query of queryVariants) {
     try {
       const unsplash = await searchUnsplashSimpleImages(query);
       const filtered = unsplash.filter((img) => isSimpleImage(img.description, concept));
       if (filtered.length > 0) {
-        return { imageUrl: filtered[0].imageUrl };
+        const randomMatch = filtered[Math.floor(Math.random() * filtered.length)];
+        return { imageUrl: randomMatch.imageUrl };
       }
-    } catch {
-      // Continue to fallback.
-    }
-    try {
-      const wiki = await searchWikipediaImages(query);
-      fallbackImages = dedupeImages([...fallbackImages, ...wiki]);
-      if (fallbackImages.length > 0) return fallbackImages[0];
-    } catch {
-      // Continue.
+    } catch (err) {
+      console.error(
+        `[Unsplash] Exception while searching query="${query}"`,
+        err
+      );
     }
   }
   return null;
