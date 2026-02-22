@@ -46,3 +46,6 @@ coverage/
 # Logs
 logs/
 *.log
+
+# Local runtime data
+data/*

@@ -113,6 +113,26 @@ export interface SessionState {
   error: string | null;
 }
 
+export interface PracticeSessionMetrics {
+  correct: number;
+  total: number;
+  accuracyPercent: number;
+  blockCount: number;
+  difficulty: Difficulty;
+  estimatedDurationMinutes: number;
+  topics: string[];
+}
+
+export interface PracticeSessionSummary {
+  id: string;
+  sessionId: string;
+  patientId: string;
+  completedAt: string;
+  summary: string;
+  performance: string;
+  metrics: PracticeSessionMetrics;
+}
+
 // ─── API Contract Types ───────────────────────────────────────────────────────
 
 export interface StartSessionResponse {
@@ -133,6 +153,27 @@ export interface SendMessageResponse {
 
 export interface GetPlanResponse {
   plan: TherapySessionPlan;
+}
+
+export interface CreatePracticeSessionSummaryRequest {
+  patientId?: string;
+  completedAt?: string;
+  metrics: {
+    correct: number;
+    total: number;
+    blockCount: number;
+    difficulty: Difficulty;
+    estimatedDurationMinutes: number;
+    topics: string[];
+  };
+}
+
+export interface CreatePracticeSessionSummaryResponse {
+  summary: PracticeSessionSummary;
+}
+
+export interface GetPracticeSessionHistoryResponse {
+  items: PracticeSessionSummary[];
 }
 
 /**

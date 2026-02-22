@@ -1,6 +1,3 @@
-// ─── Types (mirrors src/types.ts on the backend) ─────────────────────────────
-// Share these with the game/therapy engine team as the contract.
-
 export type BlockType =
   | 'word_repetition'
   | 'sentence_completion'
@@ -13,7 +10,6 @@ export type Mood = 'happy' | 'tired' | 'anxious' | 'motivated' | 'frustrated' | 
 export interface TherapyItem {
   prompt: string;
   answer: string;
-  /** picture_description optional decoy hints for image retrieval. */
   distractors?: string[];
 }
 
@@ -41,11 +37,8 @@ export interface TherapySessionPlan {
   therapyBlocks: TherapyBlock[];
 }
 
-// Frontend-facing status values (mapped from backend)
 export type SessionStatus = 'ongoing' | 'finalizing' | 'completed';
 
-// ─── API base URL ─────────────────────────────────────────────────────────────
-// Vite proxies /api → http://localhost:3001 (see vite.config.ts)
 const BASE = '/api';
 const STATUS_MAP: Record<string, SessionStatus> = {
   active: 'ongoing',
@@ -54,13 +47,16 @@ const STATUS_MAP: Record<string, SessionStatus> = {
   error: 'completed',
 };
 
-// ─── API calls ────────────────────────────────────────────────────────────────
+function parseErrorMessage(status: number, body: unknown): string {
+  if (body && typeof body === 'object') {
+    const error = (body as { error?: string }).error;
+    const detail = (body as { detail?: string }).detail;
+    if (detail) return detail;
+    if (error) return error;
+  }
+  return `HTTP ${status}`;
+}
 
-/**
- * Start a new check-in session.
- * Returns the sessionId, patientId (mocked if not yet in backend), and
- * Claude's first greeting message.
- */
 export async function startSession(): Promise<{
   sessionId: string;
   patientId: string;
@@ -69,25 +65,16 @@ export async function startSession(): Promise<{
   const res = await fetch(`${BASE}/session/start`, { method: 'POST' });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error((body as { error?: string; detail?: string }).detail ?? (body as { error?: string }).error ?? `HTTP ${res.status}`);
+    throw new Error(parseErrorMessage(res.status, body));
   }
   const data = await res.json();
   return {
     sessionId: data.sessionId,
-    // patientId is not yet returned by the backend — placeholder until added
     patientId: (data.patientId as string | undefined) ?? 'P-12345',
     message: data.message,
   };
 }
 
-/**
- * Send a patient message and get Claude's reply.
- * Maps backend's status values to frontend-friendly ones:
- *   active     → ongoing
- *   finalizing → finalizing
- *   complete   → completed
- *   error      → completed (surface error via reply text)
- */
 export async function sendMessage(
   sessionId: string,
   message: string
@@ -99,20 +86,16 @@ export async function sendMessage(
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error((body as { error?: string; detail?: string }).detail ?? (body as { error?: string }).error ?? `HTTP ${res.status}`);
+    throw new Error(parseErrorMessage(res.status, body));
   }
   const data = await res.json();
 
   return {
-    reply: data.message as string,   // backend calls the field "message"
+    reply: data.message as string,
     status: STATUS_MAP[data.status as string] ?? 'ongoing',
   };
 }
 
-/**
- * Start a demo session that skips counselling and auto-fills required profile
- * info before plan generation.
- */
 export async function startDemoSkipSession(): Promise<{
   sessionId: string;
   patientId: string;
@@ -122,7 +105,7 @@ export async function startDemoSkipSession(): Promise<{
   const res = await fetch(`${BASE}/session/demo-skip`, { method: 'POST' });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error((body as { error?: string; detail?: string }).detail ?? (body as { error?: string }).error ?? `HTTP ${res.status}`);
+    throw new Error(parseErrorMessage(res.status, body));
   }
   const data = await res.json();
 
@@ -134,28 +117,16 @@ export async function startDemoSkipSession(): Promise<{
   };
 }
 
-/**
- * Poll for the generated TherapySessionPlan.
- * Throws 'PENDING' if the plan is not yet ready (HTTP 202).
- * Use this in a polling loop (e.g., every 2 seconds).
- */
 export async function fetchPlan(sessionId: string): Promise<TherapySessionPlan> {
   const res = await fetch(`${BASE}/session/${sessionId}/plan`);
   if (res.status === 202) throw new Error('PENDING');
   if (!res.ok) {
-    // Read the error detail from the response body so the UI can show it
     const body = await res.json().catch(() => ({}));
-    const detail = (body as { detail?: string; error?: string }).detail
-      ?? (body as { error?: string }).error
-      ?? `HTTP ${res.status}`;
-    throw new Error(detail);
+    throw new Error(parseErrorMessage(res.status, body));
   }
   const data = await res.json();
-  // Backend wraps the plan in { plan: ... }
   return (data.plan ?? data) as TherapySessionPlan;
 }
-
-// ─── Picture Description image choices ────────────────────────────────────────
 
 export interface PictureChoice {
   id: 'A' | 'B' | 'C' | 'D';
@@ -176,9 +147,7 @@ export async function fetchPictureChoices(targetConcept: string, topic?: string)
   const res = await fetch(`${BASE}/picture-images?${params.toString()}`);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(
-      (body as { error?: string }).error ?? `Picture image fetch failed (${res.status})`
-    );
+    throw new Error(parseErrorMessage(res.status, body));
   }
 
   const data = (await res.json()) as {
@@ -186,4 +155,79 @@ export async function fetchPictureChoices(targetConcept: string, topic?: string)
   };
 
   return Array.isArray(data.choices) ? data.choices : [];
+}
+
+export interface PracticeSessionMetrics {
+  correct: number;
+  total: number;
+  blockCount: number;
+  difficulty: Difficulty;
+  estimatedDurationMinutes: number;
+  topics: string[];
+}
+
+export interface PracticeSessionSummary {
+  id: string;
+  sessionId: string;
+  patientId: string;
+  completedAt: string;
+  summary: string;
+  performance: string;
+  metrics: {
+    correct: number;
+    total: number;
+    accuracyPercent: number;
+    blockCount: number;
+    difficulty: Difficulty;
+    estimatedDurationMinutes: number;
+    topics: string[];
+  };
+}
+
+export interface CreatePracticeSessionSummaryRequest {
+  patientId?: string;
+  completedAt?: string;
+  metrics: PracticeSessionMetrics;
+}
+
+export async function savePracticeSessionSummary(
+  sessionId: string,
+  payload: CreatePracticeSessionSummaryRequest
+): Promise<PracticeSessionSummary> {
+  const res = await fetch(`${BASE}/session/${sessionId}/practice-summary`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(parseErrorMessage(res.status, body));
+  }
+
+  const data = (await res.json()) as { summary?: PracticeSessionSummary };
+  if (!data.summary) {
+    throw new Error('Practice summary response missing summary payload.');
+  }
+
+  return data.summary;
+}
+
+export async function fetchPracticeSessionHistory(
+  patientId = 'P-12345',
+  limit = 20
+): Promise<PracticeSessionSummary[]> {
+  const params = new URLSearchParams({
+    patientId,
+    limit: String(limit),
+  });
+
+  const res = await fetch(`${BASE}/session/history?${params.toString()}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(parseErrorMessage(res.status, body));
+  }
+
+  const data = (await res.json()) as { items?: PracticeSessionSummary[] };
+  return Array.isArray(data.items) ? data.items : [];
 }

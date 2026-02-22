@@ -3,11 +3,12 @@ import { Layout } from './components/Layout';
 import { VoiceControls } from './components/VoiceControls';
 import { SessionHistory } from './components/SessionHistory';
 import { AdminVoiceSettings } from './components/AdminVoiceSettings';
-import { GameTab } from './components/GameTab';
+import { GameTab, type PracticeSessionCompletionPayload } from './components/GameTab';
 import { SpeechIndicatorOrb } from './components/SpeechIndicatorOrb';
 import { useSession } from './hooks/useSession';
 import { useSpeechToText } from './hooks/useSpeechToText';
 import { useTextToSpeech } from './hooks/useTextToSpeech';
+import { savePracticeSessionSummary } from './api/sessionClient';
 
 const DEFAULT_VOICE_ID = 'fVVjLtJgnQI61CoImgHU';
 const DEFAULT_SPEECH_RATE = 0.8;
@@ -125,6 +126,17 @@ export default function App() {
     setView('home');
   }, []);
 
+  const handlePracticeSessionComplete = useCallback(
+    async (completion: PracticeSessionCompletionPayload) => {
+      await savePracticeSessionSummary(completion.sessionId, {
+        patientId: state.patientId,
+        completedAt: completion.completedAt,
+        metrics: completion.metrics,
+      });
+    },
+    [state.patientId]
+  );
+
   const playbackText = planReady ? activePracticePrompt ?? '' : latestAiMessage;
   const playbackButtonLabel = planReady ? 'Play prompt' : 'Repeat response';
   const playbackButtonTitle = planReady ? 'Play the current practice prompt' : 'Repeat the latest AI response';
@@ -170,7 +182,7 @@ export default function App() {
 
       {view === 'history' && (
         <section className="fade-in">
-          <SessionHistory />
+          <SessionHistory patientId={state.patientId} />
         </section>
       )}
 
@@ -293,6 +305,7 @@ export default function App() {
                       onActivePromptChange={setActivePracticePrompt}
                       voiceInput={practiceVoiceInput}
                       onVoiceInputConsumed={handlePracticeVoiceInputConsumed}
+                      onSessionComplete={handlePracticeSessionComplete}
                     />
                   </section>
                 )}

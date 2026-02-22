@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { TherapySessionPlan, PictureChoice } from '../api/sessionClient';
+import type { TherapySessionPlan, PictureChoice, Difficulty } from '../api/sessionClient';
 import { fetchPictureChoices } from '../api/sessionClient';
 import type { UseTextToSpeechResult } from '../hooks/useTextToSpeech';
 import type { UseSpeechToTextResult } from '../hooks/useSpeechToText';
@@ -22,6 +22,20 @@ interface GameTabProps {
   onActivePromptChange?: (prompt: string | null) => void;
   voiceInput?: string;
   onVoiceInputConsumed?: () => void;
+  onSessionComplete?: (summary: PracticeSessionCompletionPayload) => void | Promise<void>;
+}
+
+export interface PracticeSessionCompletionPayload {
+  sessionId: string;
+  completedAt: string;
+  metrics: {
+    correct: number;
+    total: number;
+    blockCount: number;
+    difficulty: Difficulty;
+    estimatedDurationMinutes: number;
+    topics: string[];
+  };
 }
 
 function makePlaceholderImage(label: string): string {
@@ -48,6 +62,7 @@ export function GameTab({
   onActivePromptChange,
   voiceInput,
   onVoiceInputConsumed,
+  onSessionComplete,
 }: GameTabProps) {
   const engine = useTherapyEngine();
   const practiceSpeechRate = Math.max(0.7, Math.min(1.2, speechRate * 0.9));
@@ -66,6 +81,7 @@ export function GameTab({
 
   const lastAutoPlayedRef = useRef<string | null>(null);
   const speakRef = useRef(tts.speak);
+  const reportedSessionIdsRef = useRef<Set<string>>(new Set());
   speakRef.current = tts.speak;
 
   useEffect(() => {
@@ -154,6 +170,45 @@ export function GameTab({
       cancelled = true;
     };
   }, [engine.status, engine.blockIndex, engine.itemIndex, engine.plan]);
+
+  useEffect(() => {
+    if (engine.status !== 'ended' || !engine.plan || !onSessionComplete) return;
+
+    const sessionId = engine.plan.sessionMetadata.sessionId;
+    if (reportedSessionIdsRef.current.has(sessionId)) return;
+    reportedSessionIdsRef.current.add(sessionId);
+
+    const topics = Array.from(
+      new Set(
+        engine.plan.therapyBlocks
+          .map((block) => block.topic.trim())
+          .filter((topic) => topic.length > 0)
+      )
+    ).slice(0, 6);
+
+    const payload: PracticeSessionCompletionPayload = {
+      sessionId,
+      completedAt: new Date().toISOString(),
+      metrics: {
+        correct: engine.score.correct,
+        total: engine.score.total,
+        blockCount: engine.plan.therapyBlocks.length,
+        difficulty: engine.plan.patientProfile.difficulty,
+        estimatedDurationMinutes: engine.plan.sessionMetadata.estimatedDurationMinutes,
+        topics,
+      },
+    };
+
+    void Promise.resolve(onSessionComplete(payload)).catch(() => {
+      // Keep completion flow non-blocking if history persistence fails.
+    });
+  }, [
+    engine.status,
+    engine.plan,
+    engine.score.correct,
+    engine.score.total,
+    onSessionComplete,
+  ]);
 
   const handleSubmit = useCallback(() => {
     if (!answer.trim() || submitted) return;

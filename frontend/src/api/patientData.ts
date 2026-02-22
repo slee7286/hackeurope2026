@@ -1,3 +1,8 @@
+import {
+  fetchPracticeSessionHistory,
+  type PracticeSessionSummary,
+} from './sessionClient';
+
 export interface SkillSummary {
   name: string;
   stars: number;
@@ -15,40 +20,33 @@ export interface SessionHistoryItem {
   date: string;
   summary: string;
   performance: string;
+  metrics: PracticeSessionSummary['metrics'];
 }
 
 export function getPatientSummary(): PatientSummary {
   return {
-    totalSessions: 12,
-    lastSessionDate: '2026-02-20',
-    streakDays: 5,
+    totalSessions: 0,
+    lastSessionDate: '-',
+    streakDays: 0,
     skills: [
-      { name: 'Words', stars: 3 },
-      { name: 'Sentences', stars: 2 },
-      { name: 'Conversation', stars: 1 },
+      { name: 'Words', stars: 0 },
+      { name: 'Sentences', stars: 0 },
+      { name: 'Conversation', stars: 0 },
     ],
   };
 }
 
-export function getSessionHistory(): SessionHistoryItem[] {
-  return [
-    {
-      id: 's-12',
-      date: '2026-02-20',
-      summary: 'Completed picture description and sentence completion with steady pacing.',
-      performance: 'Accuracy improved to 84% with fewer prompts needed in final block.',
-    },
-    {
-      id: 's-11',
-      date: '2026-02-17',
-      summary: 'Focused on word finding and short repetition drills.',
-      performance: 'Strong articulation in single words; moderate support needed in sentence carryover.',
-    },
-    {
-      id: 's-10',
-      date: '2026-02-14',
-      summary: 'Conversation practice around daily routines and confidence-building responses.',
-      performance: 'Longer responses increased from 3 to 5 words on average.',
-    },
-  ];
+export async function getSessionHistory(
+  patientId = 'P-12345',
+  limit = 20
+): Promise<SessionHistoryItem[]> {
+  const items = await fetchPracticeSessionHistory(patientId, limit);
+
+  return items.map((item) => ({
+    id: item.id,
+    date: item.completedAt,
+    summary: item.summary,
+    performance: item.performance,
+    metrics: item.metrics,
+  }));
 }
