@@ -633,7 +633,7 @@ input[type='text']:disabled {
 }
 
 .admin-panel {
-  max-width: 640px;
+  max-width: none;
 }
 
 .admin-form {
