@@ -25,6 +25,7 @@ interface AdminVoiceSettingsProps {
 }
 
 type AbilityLevel = 'needs_support' | 'balanced' | 'independent';
+type VoiceCatalogType = 'standard' | 'custom';
 
 const ABILITY_SPEED_PRESETS: Array<{
   level: AbilityLevel;
@@ -70,8 +71,10 @@ function getClosestAbilityLevel(speechRate: number): AbilityLevel {
 export function AdminVoiceSettings({ currentVoiceId, currentSpeechRate, onApply }: AdminVoiceSettingsProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [payload, setPayload] = useState<VoicesPayload | null>(null);
-  const [dialect, setDialect] = useState('');
+  const [standardPayload, setStandardPayload] = useState<VoicesPayload | null>(null);
+  const [customPayload, setCustomPayload] = useState<VoicesPayload | null>(null);
+  const [voiceCatalog, setVoiceCatalog] = useState<VoiceCatalogType>('standard');
+  const [selectedVoiceId, setSelectedVoiceId] = useState('');
   const [abilityLevel, setAbilityLevel] = useState<AbilityLevel>(
     getClosestAbilityLevel(currentSpeechRate),
   );
@@ -87,25 +90,59 @@ export function AdminVoiceSettings({ currentVoiceId, currentSpeechRate, onApply 
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch('/api/tts/voices');
-        if (!response.ok) {
-          throw new Error(`Could not load voice options (${response.status}).`);
+        const [standardResponse, customResponse] = await Promise.all([
+          fetch('/api/tts/voices'),
+          fetch('/api/tts/voices/custom'),
+        ]);
+
+        if (!standardResponse.ok) {
+          throw new Error(`Could not load standard voice options (${standardResponse.status}).`);
         }
 
-        const nextPayload = (await response.json()) as VoicesPayload;
+        if (!customResponse.ok) {
+          throw new Error(`Could not load custom voice options (${customResponse.status}).`);
+        }
+
+        const [nextStandardPayload, nextCustomPayload] = (await Promise.all([
+          standardResponse.json(),
+          customResponse.json(),
+        ])) as [VoicesPayload, VoicesPayload];
+
         if (!alive) {
           return;
         }
 
-        setPayload(nextPayload);
+        setStandardPayload(nextStandardPayload);
+        setCustomPayload(nextCustomPayload);
 
-        const exactMatch = nextPayload.voices.find((voice) => voice.voice_id === currentVoiceId);
-        const fallback = nextPayload.voices[0];
-        const initial = exactMatch ?? fallback;
+        const customMatch = nextCustomPayload.voices.find((voice) => voice.voice_id === currentVoiceId);
+        const standardMatch = nextStandardPayload.voices.find((voice) => voice.voice_id === currentVoiceId);
 
-        if (initial) {
-          setDialect(initial.dialect);
+        if (customMatch) {
+          setVoiceCatalog('custom');
+          setSelectedVoiceId(customMatch.voice_id);
+          return;
         }
+
+        if (standardMatch) {
+          setVoiceCatalog('standard');
+          setSelectedVoiceId(standardMatch.voice_id);
+          return;
+        }
+
+        if (nextStandardPayload.voices.length > 0) {
+          setVoiceCatalog('standard');
+          setSelectedVoiceId(nextStandardPayload.voices[0].voice_id);
+          return;
+        }
+
+        if (nextCustomPayload.voices.length > 0) {
+          setVoiceCatalog('custom');
+          setSelectedVoiceId(nextCustomPayload.voices[0].voice_id);
+          return;
+        }
+
+        setSelectedVoiceId('');
       } catch (err) {
         if (!alive) {
           return;
@@ -126,13 +163,21 @@ export function AdminVoiceSettings({ currentVoiceId, currentSpeechRate, onApply 
     };
   }, [currentVoiceId]);
 
-  const dialectOptions = useMemo(() => {
-    return payload?.voices ?? [];
-  }, [payload]);
+  const voicesByCatalog = useMemo<Record<VoiceCatalogType, VoiceEntry[]>>(
+    () => ({
+      standard: standardPayload?.voices ?? [],
+      custom: customPayload?.voices ?? [],
+    }),
+    [standardPayload, customPayload],
+  );
+
+  const activeVoiceOptions = useMemo(() => {
+    return voicesByCatalog[voiceCatalog];
+  }, [voicesByCatalog, voiceCatalog]);
 
   const selectedEntry = useMemo(() => {
-    return dialectOptions.find((voice) => voice.dialect === dialect) ?? null;
-  }, [dialectOptions, dialect]);
+    return activeVoiceOptions.find((voice) => voice.voice_id === selectedVoiceId) ?? null;
+  }, [activeVoiceOptions, selectedVoiceId]);
 
   const selectedAbilityPreset = useMemo(() => {
     return (
@@ -141,16 +186,35 @@ export function AdminVoiceSettings({ currentVoiceId, currentSpeechRate, onApply 
     );
   }, [abilityLevel]);
 
-  const onDialectChange = (nextDialect: string) => {
-    setDialect(nextDialect);
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    if (activeVoiceOptions.length === 0) {
+      if (selectedVoiceId) {
+        setSelectedVoiceId('');
+      }
+      return;
+    }
+
+    const isSelectedInCatalog = activeVoiceOptions.some((voice) => voice.voice_id === selectedVoiceId);
+    if (!isSelectedInCatalog) {
+      setSelectedVoiceId(activeVoiceOptions[0].voice_id);
+    }
+  }, [loading, activeVoiceOptions, selectedVoiceId]);
+
+  const onVoiceChange = (nextVoiceId: string) => {
+    setSelectedVoiceId(nextVoiceId);
   };
+
   const applyDisabled = !selectedEntry?.voice_id?.trim();
 
   return (
     <section className="surface-panel fade-in admin-panel">
       <h2 className="panel-title">Admin voice settings</h2>
       <p className="panel-copy">
-        Choose a language and dialect from the configured ElevenLabs list. The selected voice ID will be used for
+        Choose one voice from either the standard list or custom list. The selected voice ID will be used for
         conversation TTS. Use ability level to slightly adjust speaking speed.
       </p>
 
@@ -162,18 +226,53 @@ export function AdminVoiceSettings({ currentVoiceId, currentSpeechRate, onApply 
         </div>
       )}
 
-      {!loading && !error && payload && (
+      {!loading && !error && (
         <div className="admin-form">
+          <div className="admin-tabs" role="tablist" aria-label="Voice source tabs">
+            <button
+              type="button"
+              role="tab"
+              className={`admin-tab ${voiceCatalog === 'standard' ? 'is-active' : ''}`}
+              aria-selected={voiceCatalog === 'standard'}
+              onClick={() => setVoiceCatalog('standard')}
+              disabled={voicesByCatalog.standard.length === 0}
+            >
+              Standard
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className={`admin-tab ${voiceCatalog === 'custom' ? 'is-active' : ''}`}
+              aria-selected={voiceCatalog === 'custom'}
+              onClick={() => setVoiceCatalog('custom')}
+              disabled={voicesByCatalog.custom.length === 0}
+            >
+              Custom
+            </button>
+          </div>
+
           <label className="admin-field">
-            <span>Dialect</span>
-            <select value={dialect} onChange={(event) => onDialectChange(event.target.value)}>
-              {dialectOptions.map((option) => (
-                <option key={option.dialect} value={option.dialect}>
-                  {option.accent_description}
+            <span>{voiceCatalog === 'standard' ? 'Standard voice' : 'Custom voice'}</span>
+            <select
+              value={selectedVoiceId}
+              onChange={(event) => onVoiceChange(event.target.value)}
+              disabled={activeVoiceOptions.length === 0}
+            >
+              {activeVoiceOptions.map((option) => (
+                <option key={option.voice_id} value={option.voice_id}>
+                  {voiceCatalog === 'standard'
+                    ? `${option.accent_description} (${option.dialect})`
+                    : option.accent_description}
                 </option>
               ))}
             </select>
           </label>
+
+          {activeVoiceOptions.length === 0 && (
+            <p className="admin-note">
+              No {voiceCatalog} voices are currently configured.
+            </p>
+          )}
 
           <label className="admin-field">
             <span>User ability</span>

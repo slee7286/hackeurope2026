@@ -10,80 +10,88 @@
       "language_id": "en",
       "dialect": "en-IE",
       "accent": "irish",
-      "accent_description": "Irish male neutral (south Dublin)",
-      "voice_id": "2GErPEnQqbyeqhZQPM6r"
-    },
-    {
-      "language": "English",
-      "language_id": "en",
-      "dialect": "en-IE",
-      "accent": "irish",
-      "accent_description": "Warm southern Irish (Kerry)",
+      "accent_description": "Male Munster",
       "voice_id": "1OYA2kgM85gF2eGN8Hep"
     },
     {
       "language": "English",
       "language_id": "en",
       "dialect": "en-IE",
-      "accent": "irish",
-      "accent_description": "James - Deep and clear (Kildare)",
-      "voice_id": "g3kWXuhrNafLZGm1GXju"
+      "accent": "ulster-scots",
+      "accent_description": "Male Ulster",
+      "voice_id": "Jot7IsvC9VkWPLPjLDKw"
     },
     {
       "language": "English",
       "language_id": "en",
       "dialect": "en-IE",
       "accent": "ulster-scots",
-      "accent_description": "Jimmy - Ulster Scot",
-      "voice_id": "Jot7IsvC9VkWPLPjLDKw"
-    },
-    {
-      "language": "English",
-      "language_id": "en",
-      "dialect": "en-US",
-      "accent": "american",
-      "accent_description": "General American",
-      "voice_id": "fVVjLtJgnQI61CoImgHU"
+      "accent_description": "Female Ulster",
+      "voice_id": "E393dkE75hqtz1LO2aEJ"
     },
     {
       "language": "English",
       "language_id": "en",
       "dialect": "en-US",
       "accent": "southern-american",
-      "accent_description": "Southern American",
+      "accent_description": "Male Texas",
       "voice_id": "XXxEgZQUteXm4aqJs5PQ"
+    },
+    {
+      "language": "English",
+      "language_id": "en",
+      "dialect": "en-IE",
+      "accent": "ulster-scots",
+      "accent_description": "Female Texas",
+      "voice_id": "Qy12wuGOtvKPVgCREzXh"
     },
     {
       "language": "English",
       "language_id": "en",
       "dialect": "en-GB",
       "accent": "london",
-      "accent_description": "London",
+      "accent_description": "Male London",
       "voice_id": "WAppqUXeqDqXjNTaQxG9"
     },
-    {
+        {
       "language": "English",
       "language_id": "en",
       "dialect": "en-GB",
-      "accent": "north-england",
-      "accent_description": "North England",
-      "voice_id": "wo6udizrrtpIxWGp2qJk"
+      "accent": "london",
+      "accent_description": "Female London",
+      "voice_id": "nDJIICjR9zfJExIFeSCN"
     },
     {
       "language": "French",
       "language_id": "fr",
       "dialect": "fr-FR",
       "accent": "french",
-      "accent_description": "French",
+      "accent_description": "Male French",
       "voice_id": "xNtG3W2oqJs0cJZuTyBc"
+    },
+       {
+      "language": "French",
+      "language_id": "fr",
+      "dialect": "fr-FR",
+      "accent": "french",
+      "accent_description": "Female French",
+      "voice_id": "KmqhNPEmmOndTBOPk4mJ"
     },
     {
       "language": "English",
       "language_id": "en",
       "dialect": "en-NG",
       "accent": "nigeria",
-      "accent_description": "Nigerian",
+      "accent_description": "Female Nigerian",
       "voice_id": "me1JPr2K6H7KZB9nz2Wk"
+    },
+        {
+      "language": "English",
+      "language_id": "en",
+      "dialect": "en-NG",
+      "accent": "nigeria",
+      "accent_description": "Male Nigerian",
+      "voice_id": "77aEIu0qStu8Jwv1EdhX"
     }
   ]
 }
