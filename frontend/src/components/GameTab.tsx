@@ -47,7 +47,7 @@ function buildPlaceholderChoices(): PictureChoice[] {
   const labels: Array<'A' | 'B' | 'C' | 'D'> = ['A', 'B', 'C', 'D'];
   return labels.map((label, idx) => ({
     id: label,
-    imageUrl: makePlaceholderImage(`Option ${label}`),
+    imageUrl: makePlaceholderImage(`Choice ${idx + 1}`),
     isCorrect: idx === 0,
   }));
 }
@@ -345,7 +345,7 @@ export function GameTab({
             {imageChoices.length > 0 && (
               <>
                 <div className="game-picture-grid">
-                  {imageChoices.map((choice) => (
+                  {imageChoices.map((choice, index) => (
                     <button
                       key={choice.id}
                       className={[
@@ -354,12 +354,11 @@ export function GameTab({
                       ].join(' ').trim()}
                       onClick={() => handlePictureSelect(choice.id)}
                       disabled={submitted}
-                      aria-label={`Select option ${choice.id}`}
+                      aria-label={`Select picture option ${index + 1}`}
                     >
-                      <span className="game-picture-option-badge">{choice.id}</span>
                       <img
                         src={choice.imageUrl}
-                        alt={`Option ${choice.id}`}
+                        alt={`Picture option ${index + 1}`}
                         className="game-picture-img"
                       />
                     </button>
