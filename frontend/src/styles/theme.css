@@ -899,6 +899,10 @@ textarea:disabled {
   margin-top: 4px;
 }
 
+.demo-skip-hidden {
+  display: none !important;
+}
+
 .game-feedback-panel {
   display: flex;
   flex-direction: column;

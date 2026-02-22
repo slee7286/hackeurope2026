@@ -361,7 +361,7 @@ export default function App() {
                     </button>
                     {state.status === 'ongoing' && (
                       <button
-                        className="btn-secondary"
+                        className="btn-secondary demo-skip-hidden"
                         onClick={handleDemoSkip}
                         disabled={state.isLoading}
                         title="Skip counselling and move to practice generation"

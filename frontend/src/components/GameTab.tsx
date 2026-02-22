@@ -447,7 +447,7 @@ export function GameTab({
         </details>
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <button className="btn-secondary game-end-early-btn" onClick={handleDemoSkip}>
+          <button className="btn-secondary game-end-early-btn demo-skip-hidden" onClick={handleDemoSkip}>
             Demo Skip
           </button>
         </div>
