@@ -15,27 +15,36 @@ import type { ConversationMessage, FinalizeSessionArgs, SessionState } from "../
 // ─── Tool Definition ──────────────────────────────────────────────────────────
 
 /**
- * Claude calls this tool when it has collected enough information.
- * The typed arguments become the PatientProfile for plan generation.
- * The `required` array forces Claude to gather all fields before triggering.
+ * Claude calls this tool when the check-in is complete and it has collected
+ * enough information to generate the therapy plan.
+ *
+ * Core fields (required):
+ *   mood, interests, difficulty, notes, estimatedDurationMinutes
+ *
+ * Enhanced fields (optional):
+ *   Populated when the richer 5-phase check-in gathers deeper context.
+ *   Used to build SessionSummary alongside the therapy blocks.
  */
 const FINALIZE_SESSION_TOOL: Tool = {
   name: "finalize_session",
   description:
-    "Call this when you have learned the patient's mood, at least one interest, and difficulty preference. This ends the check-in and generates the therapy plan.",
+    "Call this when you have gathered the patient's mood, at least one interest, and difficulty preference. This ends the check-in and triggers therapy plan generation.",
   input_schema: {
     type: "object" as const,
     properties: {
+
+      // ── Core fields ─────────────────────────────────────────────────────────
+
       mood: {
         type: "string",
         enum: ["happy", "tired", "anxious", "motivated", "frustrated", "calm"],
-        description: "The patient's current mood.",
+        description: "The patient's current mood, closest enum match.",
       },
       interests: {
         type: "array",
         items: { type: "string" },
         description:
-          "Topics the patient enjoys. Examples: family, cooking, sports, music, nature, travel.",
+          "Topics the patient enjoys or mentioned. Examples: family, cooking, sports, music, nature, travel.",
         minItems: 1,
       },
       difficulty: {
@@ -46,11 +55,64 @@ const FINALIZE_SESSION_TOOL: Tool = {
       notes: {
         type: "string",
         description:
-          "Short clinical observations. Example: 'responds well to yes/no questions, prefers short prompts'.",
+          "1–2 brief clinical observations. Example: 'responds well to yes/no questions; prefers short prompts'.",
       },
       estimatedDurationMinutes: {
         type: "number",
-        description: "Suggested session length in minutes. Use 15, 20, or 25.",
+        description: "Suggested session length in minutes. Use 15 (easy), 20 (medium), or 25 (hard).",
+      },
+
+      // ── Enhanced check-in fields ─────────────────────────────────────────────
+
+      main_themes: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "1–3 key topics that emerged during the check-in. Examples: ['fatigue', 'family connection', 'difficulty sleeping'].",
+      },
+      emotional_tone: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "Emotions the patient expressed during the check-in. Examples: ['tired', 'hopeful', 'a little anxious'].",
+      },
+      mood_rating: {
+        type: "number",
+        description:
+          "Mood score on a 1–10 scale (1 = very low, 10 = excellent). Use the number from any scale asked, or estimate from context.",
+      },
+      stress_rating: {
+        type: "number",
+        description:
+          "Estimated stress level on a 1–10 scale (1 = none, 10 = overwhelming). Based on tone and content of the conversation.",
+      },
+      challenges: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "Specific difficulties the patient mentioned. Examples: ['difficulty sleeping', 'feeling isolated', 'pain when speaking'].",
+      },
+      goals: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "Any next steps or wishes the patient expressed. Examples: ['speak more clearly at meals', 'try a short walk'].",
+      },
+      safety_concern: {
+        type: "boolean",
+        description:
+          "Set to true if the patient expressed hopelessness, self-harm ideation, or acute distress. Otherwise false.",
+      },
+      safety_notes: {
+        type: "string",
+        description:
+          "A brief note describing the safety concern if safety_concern is true. Empty string otherwise.",
+      },
+      user_quotes: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "Up to 3 short direct quotes from the patient that capture their experience. Examples: ['I just feel so tired lately', 'I want to speak more clearly'].",
       },
     },
     required: [
@@ -64,10 +126,15 @@ const FINALIZE_SESSION_TOOL: Tool = {
 };
 
 // ─── Anthropic Client ─────────────────────────────────────────────────────────
+//
+// Initialised lazily so the key is read after dotenv has loaded,
+// not at module-import time (which happens before dotenv runs).
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+let _anthropic: Anthropic | null = null;
+function getClient(): Anthropic {
+  if (!_anthropic) _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return _anthropic;
+}
 
 const DEMO_FINALIZE_ARGS: FinalizeSessionArgs = {
   mood: "motivated",
@@ -104,8 +171,13 @@ function extractToolUse(content: ContentBlock[]): ToolUseBlock | null {
 
 /**
  * Creates a new session and generates Claude's opening greeting.
+ *
  * Uses a synthetic first user message because Anthropic requires the
  * conversation to start with a user turn.
+ *
+ * The opening greeting follows Phase 1 of the check-in: a warm, varied
+ * welcome that immediately asks how the patient has been feeling and offers
+ * 3–4 clear mood choices.
  */
 export async function startSession(): Promise<{
   sessionId: string;
@@ -117,9 +189,10 @@ export async function startSession(): Promise<{
     { role: "user", content: "Hello, I am ready to start." },
   ];
 
-  const response = await anthropic.messages.create({
+  const response = await getClient().messages.create({
     model: "claude-sonnet-4-5",
-    max_tokens: 300,
+    // 400 tokens gives Claude room for a warm, varied opener with choices
+    max_tokens: 400,
     system: CHECK_IN_SYSTEM_PROMPT,
     tools: [FINALIZE_SESSION_TOOL],
     messages: bootstrapMessages,
@@ -182,8 +255,13 @@ export async function startDemoSkipSession(): Promise<{
 // ─── Process User Message ─────────────────────────────────────────────────────
 
 /**
- * Appends user message to history, calls Claude, handles tool use,
- * and returns Claude's text reply plus updated session status.
+ * Appends the user's message to history, calls Claude with the full
+ * conversation context, handles tool use (finalize_session), and returns
+ * Claude's text reply plus updated session status.
+ *
+ * When finalize_session is triggered, plan generation fires asynchronously
+ * so the HTTP response can return immediately. The client polls
+ * GET /api/session/:id/plan until status is "complete".
  */
 export async function processMessage(
   sessionId: string,
@@ -210,9 +288,10 @@ export async function processMessage(
 
   const messages = toAnthropicMessages(session.history);
 
-  const response = await anthropic.messages.create({
+  const response = await getClient().messages.create({
     model: "claude-sonnet-4-5",
-    max_tokens: 500,
+    // 600 tokens: room for reflective listening + question + choices
+    max_tokens: 600,
     system: CHECK_IN_SYSTEM_PROMPT,
     tools: [FINALIZE_SESSION_TOOL],
     messages,
@@ -221,12 +300,15 @@ export async function processMessage(
   const toolUse = extractToolUse(response.content);
 
   if (toolUse) {
-    // Claude decided to finalize — extract args and trigger plan generation
+    // ── Finalize path ──────────────────────────────────────────────────────
+    // Claude decided the check-in is complete. Extract the structured args,
+    // write a compassionate closing message, then trigger async plan generation.
+
     const args = toolUse.input as FinalizeSessionArgs;
 
     const closingMessage =
       extractText(response.content) ||
-      "Thank you! I am preparing your session now. One moment.";
+      "Thank you for sharing with me today. I'm preparing your session now — just a moment.";
 
     session.history.push({ role: "assistant", content: closingMessage });
     session.status = "finalizing";
@@ -250,7 +332,7 @@ export async function processMessage(
     };
   }
 
-  // Normal conversation turn
+  // ── Normal conversation turn ───────────────────────────────────────────────
   const replyText = extractText(response.content);
   session.history.push({ role: "assistant", content: replyText });
   sessionStore.set(sessionId, session);

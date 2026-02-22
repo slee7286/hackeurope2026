@@ -108,10 +108,24 @@ export function ChatInterface({
   const [inputText, setInputText] = useState('');
   const [hasVoiceDraft, setHasVoiceDraft] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // Tracks the index of the last AI message that was auto-played.
+  // Prevents replaying the same message if the component re-renders for other reasons.
+  const lastAutoPlayedIndexRef = useRef<number>(-1);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
+
+  // Auto-play the latest AI message whenever a new one arrives.
+  useEffect(() => {
+    let lastAiIndex = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'ai') { lastAiIndex = i; break; }
+    }
+    if (lastAiIndex === -1 || lastAiIndex === lastAutoPlayedIndexRef.current) return;
+    lastAutoPlayedIndexRef.current = lastAiIndex;
+    tts.speak(messages[lastAiIndex].text, selectedVoiceId, speechRate);
+  }, [messages, tts, selectedVoiceId, speechRate]);
 
   useEffect(() => {
     if (voiceInput) {
