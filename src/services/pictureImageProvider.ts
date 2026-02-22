@@ -188,9 +188,15 @@ function dedupeImages(images: PictureImage[]): PictureImage[] {
   return output;
 }
 
-async function getConceptImage(concept: string): Promise<PictureImage | null> {
-  const queryVariants = [concept.trim(), `${concept.trim()} photo`].filter(Boolean);
-  let combined: PictureImage[] = [];
+async function getConceptImage(concept: string, topic?: string): Promise<PictureImage | null> {
+  const coreConcept = concept.trim();
+  const coreTopic = topic?.trim() ?? "";
+  const combinedQuery = [coreTopic, coreConcept].filter(Boolean).join(" ").trim();
+  const queryVariants = [
+    combinedQuery || coreConcept,
+    combinedQuery ? `${combinedQuery} photo` : `${coreConcept} photo`,
+  ].filter(Boolean);
+  let fallbackImages: PictureImage[] = [];
   for (const query of queryVariants) {
     try {
       const unsplash = await searchUnsplashSimpleImages(query);
@@ -203,8 +209,8 @@ async function getConceptImage(concept: string): Promise<PictureImage | null> {
     }
     try {
       const wiki = await searchWikipediaImages(query);
-      combined = dedupeImages([...combined, ...wiki]);
-      if (combined.length > 0) return combined[0];
+      fallbackImages = dedupeImages([...fallbackImages, ...wiki]);
+      if (fallbackImages.length > 0) return fallbackImages[0];
     } catch {
       // Continue.
     }
@@ -231,12 +237,13 @@ function shuffleArray<T>(items: T[]): T[] {
 }
 
 export async function getPictureDescriptionChoices(
-  targetConcept: string
+  targetConcept: string,
+  topic?: string
 ): Promise<PictureChoice[]> {
   const target = targetConcept.trim();
   if (!target) return buildChoicePlaceholders("Object");
 
-  const correctImage = await getConceptImage(target);
+  const correctImage = await getConceptImage(target, topic);
   if (!correctImage) {
     return buildChoicePlaceholders(target);
   }
@@ -247,7 +254,7 @@ export async function getPictureDescriptionChoices(
 
   for (const decoyConcept of pickedDecoys) {
     if (decoyImages.length >= 3) break;
-    const image = await getConceptImage(decoyConcept);
+    const image = await getConceptImage(decoyConcept, topic);
     if (!image) continue;
     if (image.imageUrl === correctImage.imageUrl) continue;
     if (decoyImages.some((existing) => existing.imageUrl === image.imageUrl)) continue;

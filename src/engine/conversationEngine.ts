@@ -12,6 +12,18 @@ import { CHECK_IN_SYSTEM_PROMPT } from "./systemPrompts";
 import { generateSessionPlan } from "./sessionPlanGenerator";
 import type { ConversationMessage, FinalizeSessionArgs, SessionState } from "../types";
 
+const MIN_PRACTICE_QUESTIONS = 4;
+const MAX_PRACTICE_QUESTIONS = 50;
+const DEFAULT_PRACTICE_QUESTION_COUNT = 10;
+
+function resolvePracticeQuestionCount(input: number | undefined): number {
+  if (typeof input !== "number" || !Number.isFinite(input)) {
+    return DEFAULT_PRACTICE_QUESTION_COUNT;
+  }
+  const rounded = Math.trunc(input);
+  return Math.min(MAX_PRACTICE_QUESTIONS, Math.max(MIN_PRACTICE_QUESTIONS, rounded));
+}
+
 // ─── Tool Definition ──────────────────────────────────────────────────────────
 
 /**
@@ -179,7 +191,18 @@ function extractToolUse(content: ContentBlock[]): ToolUseBlock | null {
  * welcome that immediately asks how the patient has been feeling and offers
  * 3–4 clear mood choices.
  */
-export async function startSession(): Promise<{
+export async function startSession(options?: {
+  practiceQuestionCount?: number;
+}): Promise<{
+  sessionId: string;
+  firstMessage: string;
+}> {
+  return startSessionWithOptions(options ?? {});
+}
+
+export async function startSessionWithOptions(options: {
+  practiceQuestionCount?: number;
+}): Promise<{
   sessionId: string;
   firstMessage: string;
 }> {
@@ -209,6 +232,7 @@ export async function startSession(): Promise<{
       { role: "assistant", content: firstMessage },
     ],
     plan: null,
+    practiceQuestionCount: resolvePracticeQuestionCount(options.practiceQuestionCount),
     error: null,
   };
 
@@ -220,7 +244,19 @@ export async function startSession(): Promise<{
  * Creates a new demo session that bypasses counselling and immediately
  * starts plan generation with safe default profile values.
  */
-export async function startDemoSkipSession(): Promise<{
+export async function startDemoSkipSession(options?: {
+  practiceQuestionCount?: number;
+}): Promise<{
+  sessionId: string;
+  firstMessage: string;
+  status: "finalizing";
+}> {
+  return startDemoSkipSessionWithOptions(options ?? {});
+}
+
+export async function startDemoSkipSessionWithOptions(options: {
+  practiceQuestionCount?: number;
+}): Promise<{
   sessionId: string;
   firstMessage: string;
   status: "finalizing";
@@ -235,12 +271,15 @@ export async function startDemoSkipSession(): Promise<{
     status: "finalizing",
     history: [{ role: "assistant", content: firstMessage }],
     plan: null,
+    practiceQuestionCount: resolvePracticeQuestionCount(options.practiceQuestionCount),
     error: null,
   };
 
   sessionStore.set(sessionId, session);
 
-  generateSessionPlan(sessionId, DEMO_FINALIZE_ARGS).catch((err: Error) => {
+  generateSessionPlan(sessionId, DEMO_FINALIZE_ARGS, {
+    practiceQuestionCount: session.practiceQuestionCount,
+  }).catch((err: Error) => {
     const s = sessionStore.get(sessionId);
     if (s) {
       s.status = "error";
@@ -316,7 +355,9 @@ export async function processMessage(
 
     // Fire plan generation without await — HTTP response returns immediately.
     // Client polls GET /api/session/:id/plan until status is "complete".
-    generateSessionPlan(sessionId, args).catch((err: Error) => {
+    generateSessionPlan(sessionId, args, {
+      practiceQuestionCount: session.practiceQuestionCount,
+    }).catch((err: Error) => {
       const s = sessionStore.get(sessionId);
       if (s) {
         s.status = "error";

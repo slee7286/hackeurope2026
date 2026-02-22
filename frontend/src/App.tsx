@@ -15,6 +15,10 @@ const VOICE_STORAGE_KEY = 'therapy.selected_voice_id';
 const VOICE_DESCRIPTOR_STORAGE_KEY = 'therapy.selected_voice_descriptor';
 const CAPTIONS_STORAGE_KEY = 'therapy.captions_enabled';
 const SPEECH_RATE_STORAGE_KEY = 'therapy.speech_rate';
+const PRACTICE_QUESTION_COUNT_STORAGE_KEY = 'therapy.practice_question_count';
+const DEFAULT_PRACTICE_QUESTION_COUNT = 10;
+const MIN_PRACTICE_QUESTIONS = 4;
+const MAX_PRACTICE_QUESTIONS = 50;
 
 type View = 'home' | 'session' | 'history' | 'admin';
 
@@ -39,6 +43,11 @@ export default function App() {
   const [captionsEnabled, setCaptionsEnabled] = useState<boolean>(
     () => localStorage.getItem(CAPTIONS_STORAGE_KEY) !== '0'
   );
+  const [practiceQuestionCount, setPracticeQuestionCount] = useState<number>(() => {
+    const raw = Number(localStorage.getItem(PRACTICE_QUESTION_COUNT_STORAGE_KEY));
+    if (!Number.isFinite(raw)) return DEFAULT_PRACTICE_QUESTION_COUNT;
+    return Math.min(MAX_PRACTICE_QUESTIONS, Math.max(MIN_PRACTICE_QUESTIONS, Math.trunc(raw)));
+  });
   const lastAutoPlayedAiMessageKeyRef = useRef<string | null>(null);
 
   const { state, start, send, demoSkip } = useSession();
@@ -47,6 +56,7 @@ export default function App() {
   const { speak } = tts;
   const sessionActive = state.status !== 'idle' && state.status !== 'starting';
   const planReady = state.status === 'completed' && !!state.plan;
+  const sessionMode: 'checkin' | 'practice' = view === 'session' && planReady ? 'practice' : 'checkin';
   const latestAiMessage = [...state.messages].reverse().find((message) => message.role === 'ai')?.text ?? '';
 
   const handleTranscriptReady = useCallback(
@@ -67,13 +77,24 @@ export default function App() {
     setPracticeVoiceInput('');
   }, []);
 
-  const handleApplyVoice = useCallback((nextVoiceId: string, nextSpeechRate: number, nextDescriptor: string) => {
+  const handleApplyVoice = useCallback((
+    nextVoiceId: string,
+    nextSpeechRate: number,
+    nextDescriptor: string,
+    nextPracticeQuestionCount: number,
+  ) => {
+    const clampedQuestionCount = Math.min(
+      MAX_PRACTICE_QUESTIONS,
+      Math.max(MIN_PRACTICE_QUESTIONS, Math.trunc(nextPracticeQuestionCount)),
+    );
     setSelectedVoiceId(nextVoiceId);
     setSpeechRate(nextSpeechRate);
     setSelectedVoiceDescriptor(nextDescriptor);
+    setPracticeQuestionCount(clampedQuestionCount);
     localStorage.setItem(VOICE_STORAGE_KEY, nextVoiceId);
     localStorage.setItem(SPEECH_RATE_STORAGE_KEY, String(nextSpeechRate));
     localStorage.setItem(VOICE_DESCRIPTOR_STORAGE_KEY, nextDescriptor);
+    localStorage.setItem(PRACTICE_QUESTION_COUNT_STORAGE_KEY, String(clampedQuestionCount));
     setView('home');
   }, []);
 
@@ -109,15 +130,15 @@ export default function App() {
     setActivePracticePrompt(null);
     setPracticeVoiceInput('');
     setView('session');
-    await start();
-  }, [start]);
+    await start(practiceQuestionCount);
+  }, [start, practiceQuestionCount]);
 
   const handleDemoSkip = useCallback(async () => {
     setActivePracticePrompt(null);
     setPracticeVoiceInput('');
     setView('session');
-    await demoSkip();
-  }, [demoSkip]);
+    await demoSkip(practiceQuestionCount);
+  }, [demoSkip, practiceQuestionCount]);
 
   const handleGoHome = useCallback(() => {
     setActivePracticePrompt(null);
@@ -130,7 +151,11 @@ export default function App() {
   const playbackButtonTitle = planReady ? 'Play the current practice prompt' : 'Repeat the latest AI response';
 
   return (
-    <Layout showBackButton={view !== 'home'} onBackButtonClick={handleGoHome}>
+    <Layout
+      showBackButton={view !== 'home'}
+      onBackButtonClick={handleGoHome}
+      sessionMode={sessionMode}
+    >
       {view === 'home' && (
         <section className="surface-panel fade-in">
           <h2 className="panel-title">Welcome</h2>
@@ -164,6 +189,7 @@ export default function App() {
         <AdminVoiceSettings
           currentVoiceId={selectedVoiceId}
           currentSpeechRate={speechRate}
+          currentPracticeQuestionCount={practiceQuestionCount}
           onApply={handleApplyVoice}
         />
       )}
@@ -175,7 +201,7 @@ export default function App() {
       )}
 
       {view === 'session' && (
-        <section className="fade-in session-flow">
+        <section className={`fade-in session-flow${planReady ? ' session-flow--practice' : ''}`}>
           <div className="surface-panel session-panel">
             {state.status === 'idle' && (
               <div className="session-start">

@@ -44,6 +44,14 @@ export interface TherapySessionPlan {
 // Frontend-facing status values (mapped from backend)
 export type SessionStatus = 'ongoing' | 'finalizing' | 'completed';
 
+const MIN_PRACTICE_QUESTIONS = 4;
+const MAX_PRACTICE_QUESTIONS = 50;
+
+function normalisePracticeQuestionCount(value: number | undefined): number | undefined {
+  if (!Number.isFinite(value)) return undefined;
+  return Math.min(MAX_PRACTICE_QUESTIONS, Math.max(MIN_PRACTICE_QUESTIONS, Math.trunc(value as number)));
+}
+
 // ─── API base URL ─────────────────────────────────────────────────────────────
 // Vite proxies /api → http://localhost:3001 (see vite.config.ts)
 const BASE = '/api';
@@ -61,12 +69,19 @@ const STATUS_MAP: Record<string, SessionStatus> = {
  * Returns the sessionId, patientId (mocked if not yet in backend), and
  * Claude's first greeting message.
  */
-export async function startSession(): Promise<{
+export async function startSession(practiceQuestionCount?: number): Promise<{
   sessionId: string;
   patientId: string;
   message: string;
 }> {
-  const res = await fetch(`${BASE}/session/start`, { method: 'POST' });
+  const nextPracticeQuestionCount = normalisePracticeQuestionCount(practiceQuestionCount);
+  const res = await fetch(`${BASE}/session/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(
+      nextPracticeQuestionCount === undefined ? {} : { practiceQuestionCount: nextPracticeQuestionCount },
+    ),
+  });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error((body as { error?: string; detail?: string }).detail ?? (body as { error?: string }).error ?? `HTTP ${res.status}`);
@@ -113,13 +128,20 @@ export async function sendMessage(
  * Start a demo session that skips counselling and auto-fills required profile
  * info before plan generation.
  */
-export async function startDemoSkipSession(): Promise<{
+export async function startDemoSkipSession(practiceQuestionCount?: number): Promise<{
   sessionId: string;
   patientId: string;
   message: string;
   status: SessionStatus;
 }> {
-  const res = await fetch(`${BASE}/session/demo-skip`, { method: 'POST' });
+  const nextPracticeQuestionCount = normalisePracticeQuestionCount(practiceQuestionCount);
+  const res = await fetch(`${BASE}/session/demo-skip`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(
+      nextPracticeQuestionCount === undefined ? {} : { practiceQuestionCount: nextPracticeQuestionCount },
+    ),
+  });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error((body as { error?: string; detail?: string }).detail ?? (body as { error?: string }).error ?? `HTTP ${res.status}`);

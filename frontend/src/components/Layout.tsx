@@ -4,11 +4,19 @@ interface LayoutProps {
   children: React.ReactNode;
   showBackButton?: boolean;
   onBackButtonClick?: () => void;
+  sessionMode?: 'checkin' | 'practice';
 }
 
-export function Layout({ children, showBackButton = false, onBackButtonClick }: LayoutProps) {
+export function Layout({
+  children,
+  showBackButton = false,
+  onBackButtonClick,
+  sessionMode = 'checkin',
+}: LayoutProps) {
+  const shellClassName = `app-shell${sessionMode === 'practice' ? ' app-shell--practice' : ''}`;
+
   return (
-    <div className="app-shell">
+    <div className={shellClassName}>
       <div className="app-container">
         <header className="app-header">
           <div className="app-brand">

@@ -110,6 +110,7 @@ export interface SessionState {
   status: SessionStatus;
   history: ConversationMessage[];
   plan: TherapySessionPlan | null;
+  practiceQuestionCount?: number;
   error: string | null;
 }
 
