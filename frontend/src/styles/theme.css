@@ -643,6 +643,33 @@ input[type='text']:disabled {
   margin-top: 14px;
 }
 
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.admin-tab {
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  border-radius: 999px;
+  padding: 0.42em 0.95em;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.admin-tab:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  transform: none;
+}
+
+.admin-tab.is-active {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+}
+
 .admin-field {
   display: flex;
   flex-direction: column;

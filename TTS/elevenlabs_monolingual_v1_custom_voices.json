@@ -1,0 +1,25 @@
+{
+  "source": "ElevenLabs API",
+  "model": {
+    "id": "eleven_multilingual_v2",
+    "name": "Eleven Multilingual v2"
+  },
+  "voices": [
+    {
+      "language": "English",
+      "language_id": "en",
+      "dialect": "custom",
+      "accent": "custom",
+      "accent_description": "Jack (Brother)",
+      "voice_id": "X12PW7Yyha7jBtX7TvA7"
+    },
+    {
+      "language": "English",
+      "language_id": "en",
+      "dialect": "custom",
+      "accent": "custom",
+      "accent_description": "Conor (Uncle)",
+      "voice_id": "3eVrprDFlR0XptOAqBQp"
+    }
+  ]
+}

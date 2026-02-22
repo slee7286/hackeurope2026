@@ -47,6 +47,12 @@ interface WordTiming {
   end: number;
 }
 
+async function readAccentVoicePayload(fileName: string): Promise<AccentVoicePayload> {
+  const accentsFilePath = path.join(process.cwd(), "TTS", fileName);
+  const content = await fs.readFile(accentsFilePath, "utf8");
+  return JSON.parse(content) as AccentVoicePayload;
+}
+
 function resolveTargetVoiceId(body: TtsRequestBody): string {
   const requestedVoiceId =
     (typeof body.voiceId === "string" ? body.voiceId : body.voice_id)?.trim() ?? "";
@@ -119,14 +125,27 @@ ttsRouter.get(
   "/voices",
   async (_req: Request, res: Response, next: NextFunction) => {
     try {
-      const accentsFilePath = path.join(
-        process.cwd(),
-        "TTS",
+      const payload = await readAccentVoicePayload(
         "elevenlabs_monolingual_v1_accents_dialects.json"
       );
+      res.json(payload);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
-      const content = await fs.readFile(accentsFilePath, "utf8");
-      const payload = JSON.parse(content) as AccentVoicePayload;
+/**
+ * GET /api/tts/voices/custom
+ * Returns custom voice metadata from TTS/elevenlabs_monolingual_v1_custom_voices.json.
+ */
+ttsRouter.get(
+  "/voices/custom",
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const payload = await readAccentVoicePayload(
+        "elevenlabs_monolingual_v1_custom_voices.json"
+      );
       res.json(payload);
     } catch (err) {
       next(err);
