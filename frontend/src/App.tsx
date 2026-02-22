@@ -23,6 +23,28 @@ const MAX_PRACTICE_QUESTIONS = 50;
 
 type View = 'home' | 'session' | 'history' | 'admin';
 
+interface LatestAiMessageMeta {
+  key: string;
+  text: string;
+}
+
+function getLatestAiMessageMeta(
+  messages: Array<{ role: 'ai' | 'patient'; text: string }>,
+  sessionId: string | null
+): LatestAiMessageMeta | null {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const message = messages[i];
+    if (message.role !== 'ai') continue;
+    const text = message.text.trim();
+    if (!text) return null;
+    return {
+      key: `${sessionId ?? 'no-session'}:${i}:${text}`,
+      text,
+    };
+  }
+  return null;
+}
+
 export default function App() {
   const [view, setView] = useState<View>('home');
   const [activePracticePrompt, setActivePracticePrompt] = useState<string | null>(null);
@@ -57,6 +79,7 @@ export default function App() {
   const wasPlanAvailableRef = useRef(false);
   const transitionMessageRef = useRef<string | null>(null);
   const transitionMessageStartedRef = useRef(false);
+  const pendingAutoPlayAiMessageRef = useRef<LatestAiMessageMeta | null>(null);
   const [isPracticeUnlocked, setIsPracticeUnlocked] = useState(false);
 
   const { state, start, send, demoSkip } = useSession();
@@ -67,7 +90,8 @@ export default function App() {
   const planAvailable = state.status === 'completed' && !!state.plan;
   const planReady = planAvailable && isPracticeUnlocked;
   const sessionMode: 'checkin' | 'practice' = view === 'session' && planReady ? 'practice' : 'checkin';
-  const latestAiMessage = [...state.messages].reverse().find((message) => message.role === 'ai')?.text ?? '';
+  const latestAiMessageMeta = getLatestAiMessageMeta(state.messages, state.sessionId);
+  const latestAiMessage = latestAiMessageMeta?.text ?? '';
 
   const handleTranscriptReady = useCallback(
     (text: string) => {
@@ -118,26 +142,59 @@ export default function App() {
 
   useEffect(() => {
     if (view !== 'session') return;
+    if (!latestAiMessageMeta) return;
+    if (latestAiMessageMeta.key === lastAutoPlayedAiMessageKeyRef.current) return;
 
-    let latestAiMessageIndex = -1;
-    for (let i = state.messages.length - 1; i >= 0; i -= 1) {
-      if (state.messages[i].role === 'ai') {
-        latestAiMessageIndex = i;
-        break;
-      }
+    const isSpeechBusy = tts.isPlaying || (tts.currentText?.trim() ?? '').length > 0;
+    if (isSpeechBusy) {
+      pendingAutoPlayAiMessageRef.current = latestAiMessageMeta;
+      return;
     }
 
-    if (latestAiMessageIndex < 0) return;
+    pendingAutoPlayAiMessageRef.current = null;
+    lastAutoPlayedAiMessageKeyRef.current = latestAiMessageMeta.key;
+    void speak(latestAiMessageMeta.text, selectedVoiceId, speechRate);
+  }, [
+    view,
+    latestAiMessageMeta,
+    selectedVoiceId,
+    speechRate,
+    speak,
+    tts.isPlaying,
+    tts.currentText,
+  ]);
 
-    const nextAiMessage = state.messages[latestAiMessageIndex]?.text?.trim();
-    if (!nextAiMessage) return;
+  useEffect(() => {
+    if (view !== 'session') return;
 
-    const nextAiMessageKey = `${state.sessionId ?? 'no-session'}:${latestAiMessageIndex}:${nextAiMessage}`;
-    if (nextAiMessageKey === lastAutoPlayedAiMessageKeyRef.current) return;
+    const pending = pendingAutoPlayAiMessageRef.current;
+    if (!pending) return;
 
-    lastAutoPlayedAiMessageKeyRef.current = nextAiMessageKey;
-    void speak(nextAiMessage, selectedVoiceId, speechRate);
-  }, [view, state.messages, state.sessionId, selectedVoiceId, speechRate, speak]);
+    const isSpeechBusy = tts.isPlaying || (tts.currentText?.trim() ?? '').length > 0;
+    if (isSpeechBusy) return;
+
+    if (!latestAiMessageMeta || latestAiMessageMeta.key !== pending.key) {
+      pendingAutoPlayAiMessageRef.current = null;
+      return;
+    }
+
+    if (pending.key === lastAutoPlayedAiMessageKeyRef.current) {
+      pendingAutoPlayAiMessageRef.current = null;
+      return;
+    }
+
+    pendingAutoPlayAiMessageRef.current = null;
+    lastAutoPlayedAiMessageKeyRef.current = pending.key;
+    void speak(pending.text, selectedVoiceId, speechRate);
+  }, [
+    view,
+    latestAiMessageMeta,
+    selectedVoiceId,
+    speechRate,
+    speak,
+    tts.isPlaying,
+    tts.currentText,
+  ]);
 
   useEffect(() => {
     const becameAvailable = planAvailable && !wasPlanAvailableRef.current;
@@ -237,6 +294,7 @@ export default function App() {
   const handleStartSession = useCallback(async () => {
     setActivePracticePrompt(null);
     setPracticeVoiceInput('');
+    pendingAutoPlayAiMessageRef.current = null;
     setView('session');
     await start(practiceQuestionCount);
   }, [start, practiceQuestionCount]);
@@ -244,6 +302,7 @@ export default function App() {
   const handleDemoSkip = useCallback(async () => {
     setActivePracticePrompt(null);
     setPracticeVoiceInput('');
+    pendingAutoPlayAiMessageRef.current = null;
     setView('session');
     await demoSkip(practiceQuestionCount);
   }, [demoSkip, practiceQuestionCount]);
@@ -251,6 +310,7 @@ export default function App() {
   const handleGoHome = useCallback(() => {
     setActivePracticePrompt(null);
     setPracticeVoiceInput('');
+    pendingAutoPlayAiMessageRef.current = null;
     setView('home');
   }, []);
 
