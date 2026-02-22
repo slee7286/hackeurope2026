@@ -15,10 +15,12 @@ const VOICE_STORAGE_KEY = 'therapy.selected_voice_id';
 const CAPTIONS_STORAGE_KEY = 'therapy.captions_enabled';
 const SPEECH_RATE_STORAGE_KEY = 'therapy.speech_rate';
 
-type View = 'home' | 'session' | 'history' | 'admin' | 'game';
+type View = 'home' | 'session' | 'history' | 'admin';
 
 export default function App() {
   const [view, setView] = useState<View>('home');
+  const [activePracticePrompt, setActivePracticePrompt] = useState<string | null>(null);
+  const [practiceVoiceInput, setPracticeVoiceInput] = useState('');
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>(
     () => localStorage.getItem(VOICE_STORAGE_KEY) ?? DEFAULT_VOICE_ID
   );
@@ -39,16 +41,27 @@ export default function App() {
   const stt = useSpeechToText();
   const tts = useTextToSpeech();
   const { speak } = tts;
+  const sessionActive = state.status !== 'idle' && state.status !== 'starting';
+  const planReady = state.status === 'completed' && !!state.plan;
+  const latestAiMessage = [...state.messages].reverse().find((message) => message.role === 'ai')?.text ?? '';
 
   const handleTranscriptReady = useCallback(
     (text: string) => {
       const trimmed = text.trim();
       stt.clearTranscript();
       if (!trimmed) return;
+      if (planReady) {
+        setPracticeVoiceInput(trimmed);
+        return;
+      }
       void send(trimmed);
     },
-    [send, stt]
+    [planReady, send, stt]
   );
+
+  const handlePracticeVoiceInputConsumed = useCallback(() => {
+    setPracticeVoiceInput('');
+  }, []);
 
   const handleApplyVoice = useCallback((nextVoiceId: string, nextSpeechRate: number) => {
     setSelectedVoiceId(nextVoiceId);
@@ -62,10 +75,6 @@ export default function App() {
     setCaptionsEnabled(enabled);
     localStorage.setItem(CAPTIONS_STORAGE_KEY, enabled ? '1' : '0');
   }, []);
-
-  const sessionActive = state.status !== 'idle' && state.status !== 'starting';
-  const planReady = state.status === 'completed' && !!state.plan;
-  const latestAiMessage = [...state.messages].reverse().find((message) => message.role === 'ai')?.text ?? '';
 
   useEffect(() => {
     if (view !== 'session') return;
@@ -91,17 +100,31 @@ export default function App() {
   }, [view, state.messages, state.sessionId, selectedVoiceId, speechRate, speak]);
 
   const handleStartSession = useCallback(async () => {
+    setActivePracticePrompt(null);
+    setPracticeVoiceInput('');
     setView('session');
     await start();
   }, [start]);
 
   const handleDemoSkip = useCallback(async () => {
+    setActivePracticePrompt(null);
+    setPracticeVoiceInput('');
     setView('session');
     await demoSkip();
   }, [demoSkip]);
 
+  const handleGoHome = useCallback(() => {
+    setActivePracticePrompt(null);
+    setPracticeVoiceInput('');
+    setView('home');
+  }, []);
+
+  const playbackText = planReady ? activePracticePrompt ?? '' : latestAiMessage;
+  const playbackButtonLabel = planReady ? 'Play prompt' : 'Repeat response';
+  const playbackButtonTitle = planReady ? 'Play the current practice prompt' : 'Repeat the latest AI response';
+
   return (
-    <Layout showBackButton={view !== 'home'} onBackButtonClick={() => setView('home')}>
+    <Layout showBackButton={view !== 'home'} onBackButtonClick={handleGoHome}>
       {view === 'home' && (
         <section className="surface-panel fade-in">
           <h2 className="panel-title">Welcome</h2>
@@ -112,9 +135,6 @@ export default function App() {
             </button>
             <button onClick={() => setView('history')} className="btn-secondary home-btn">
               Session history
-            </button>
-            <button onClick={() => setView('game')} className="btn-secondary home-btn" disabled={!planReady}>
-              Practice game
             </button>
             <button
               onClick={() => setView('admin')}
@@ -157,9 +177,6 @@ export default function App() {
                 <div className="session-start-actions">
                   <button onClick={handleStartSession} className="btn-primary">
                     Check into session
-                  </button>
-                  <button onClick={handleDemoSkip} className="btn-secondary">
-                    Demo Skip
                   </button>
                   <button onClick={() => setView('admin')} className="btn-secondary">
                     Admin settings
@@ -232,45 +249,50 @@ export default function App() {
                   <div className="session-voice-controls">
                     <button
                       className="btn-primary"
-                      onClick={() => tts.speak(latestAiMessage, selectedVoiceId, speechRate)}
-                      disabled={!latestAiMessage || tts.isPlaying}
-                      title="Repeat the latest AI response"
+                      onClick={() => tts.speak(playbackText, selectedVoiceId, speechRate)}
+                      disabled={!playbackText || tts.isPlaying}
+                      title={playbackButtonTitle}
                     >
-                      {tts.isPlaying ? 'Playing...' : 'Repeat response'}
+                      {tts.isPlaying ? 'Playing...' : playbackButtonLabel}
                     </button>
+                    {state.status === 'ongoing' && (
+                      <button
+                        className="btn-secondary"
+                        onClick={handleDemoSkip}
+                        disabled={state.isLoading}
+                        title="Skip counselling and move to practice generation"
+                      >
+                        Demo Skip
+                      </button>
+                    )}
                   </div>
                   <VoiceControls
                     stt={stt}
                     onTranscriptReady={handleTranscriptReady}
-                    disabled={state.isLoading || state.status === 'completed' || state.status === 'finalizing'}
+                    disabled={state.isLoading || state.status === 'finalizing'}
                     embedded
                     buttonsOnly
                   />
                 </div>
 
                 {planReady && (
-                  <div style={{ textAlign: 'center', paddingTop: 4 }}>
-                    <button className="btn-primary" style={{ fontSize: 'var(--font-size-lg)', padding: '0.65em 2em' }} onClick={() => setView('game')}>
-                      Start practice
-                    </button>
-                  </div>
+                  <section className="fade-in">
+                    <GameTab
+                      plan={state.plan}
+                      onGoHome={handleGoHome}
+                      tts={tts}
+                      stt={stt}
+                      selectedVoiceId={selectedVoiceId}
+                      speechRate={speechRate}
+                      onActivePromptChange={setActivePracticePrompt}
+                      voiceInput={practiceVoiceInput}
+                      onVoiceInputConsumed={handlePracticeVoiceInputConsumed}
+                    />
+                  </section>
                 )}
               </>
             )}
           </div>
-        </section>
-      )}
-
-      {view === 'game' && (
-        <section className="fade-in">
-          <GameTab
-            plan={state.plan}
-            onGoHome={() => setView('home')}
-            tts={tts}
-            stt={stt}
-            selectedVoiceId={selectedVoiceId}
-            speechRate={speechRate}
-          />
         </section>
       )}
     </Layout>

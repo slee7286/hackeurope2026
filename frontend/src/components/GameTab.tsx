@@ -19,6 +19,9 @@ interface GameTabProps {
   stt: UseSpeechToTextResult;
   selectedVoiceId: string;
   speechRate: number;
+  onActivePromptChange?: (prompt: string | null) => void;
+  voiceInput?: string;
+  onVoiceInputConsumed?: () => void;
 }
 
 function makePlaceholderImage(label: string): string {
@@ -35,14 +38,22 @@ function buildPlaceholderChoices(): PictureChoice[] {
   }));
 }
 
-export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId, speechRate }: GameTabProps) {
+export function GameTab({
+  plan,
+  onGoHome,
+  tts,
+  stt,
+  selectedVoiceId,
+  speechRate,
+  onActivePromptChange,
+  voiceInput,
+  onVoiceInputConsumed,
+}: GameTabProps) {
   const engine = useTherapyEngine();
   const practiceSpeechRate = Math.max(0.7, Math.min(1.2, speechRate * 0.9));
   const [answer, setAnswer] = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const [showPromptText, setShowPromptText] = useState(false);
   const [hasTranscript, setHasTranscript] = useState(false);
-  const [holdHint, setHoldHint] = useState<string | null>(null);
 
   const [imageChoices, setImageChoices] = useState<PictureChoice[]>([]);
   const [imagesLoading, setImagesLoading] = useState(false);
@@ -55,7 +66,6 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId, speechRate 
 
   const lastAutoPlayedRef = useRef<string | null>(null);
   const speakRef = useRef(tts.speak);
-  const holdStartTimeRef = useRef<number | null>(null);
   speakRef.current = tts.speak;
 
   useEffect(() => {
@@ -73,14 +83,11 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId, speechRate 
     if (engine.status === 'presenting') {
       setAnswer('');
       setSubmitted(false);
-      setShowPromptText(false);
       setHasTranscript(false);
-      setHoldHint(null);
       setImageChoices([]);
       setImagesLoading(false);
       setSelectedChoiceId(null);
       setLastPictureFeedback(null);
-      holdStartTimeRef.current = null;
     }
   }, [engine.status, engine.blockIndex, engine.itemIndex]);
 
@@ -96,29 +103,30 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId, speechRate 
   }, [engine.status, engine.blockIndex, engine.itemIndex, engine.plan, selectedVoiceId, practiceSpeechRate]);
 
   useEffect(() => {
-    if (stt.transcript) {
-      setAnswer(stt.transcript);
-      setHasTranscript(true);
-      setHoldHint(null);
-      stt.clearTranscript();
+    if (!onActivePromptChange) return;
+    if (engine.status !== 'presenting' || !engine.plan) {
+      onActivePromptChange(null);
+      return;
     }
-  }, [stt.transcript, stt.clearTranscript]);
+    const block = engine.plan.therapyBlocks[engine.blockIndex];
+    const item = block?.items[engine.itemIndex];
+    onActivePromptChange(item?.prompt ?? null);
+  }, [engine.status, engine.plan, engine.blockIndex, engine.itemIndex, onActivePromptChange]);
 
-  const handleRecordMouseDown = useCallback(async () => {
-    if (submitted || stt.isRecording || stt.isTranscribing) return;
-    setHoldHint(null);
-    holdStartTimeRef.current = Date.now();
-    await stt.startRecording();
-  }, [submitted, stt]);
+  useEffect(() => {
+    return () => {
+      onActivePromptChange?.(null);
+    };
+  }, [onActivePromptChange]);
 
-  const handleRecordMouseUp = useCallback(() => {
-    if (!stt.isRecording) return;
-    const heldMs = holdStartTimeRef.current ? Date.now() - holdStartTimeRef.current : 0;
-    holdStartTimeRef.current = null;
-    const isTooShort = heldMs < 150;
-    stt.stopRecording({ discard: isTooShort });
-    if (isTooShort) setHoldHint('Press and hold to talk.');
-  }, [stt]);
+  useEffect(() => {
+    if (!voiceInput) return;
+    const trimmed = voiceInput.trim();
+    onVoiceInputConsumed?.();
+    if (!trimmed) return;
+    setAnswer(trimmed);
+    setHasTranscript(true);
+  }, [voiceInput, onVoiceInputConsumed]);
 
   useEffect(() => {
     if (engine.status !== 'presenting' || !engine.plan) return;
@@ -147,13 +155,6 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId, speechRate 
     };
   }, [engine.status, engine.blockIndex, engine.itemIndex, engine.plan]);
 
-  const handlePlayPrompt = useCallback(() => {
-    if (!engine.plan) return;
-    const block = engine.plan.therapyBlocks[engine.blockIndex];
-    const item = block?.items[engine.itemIndex];
-    if (item) tts.speak(item.prompt, selectedVoiceId, practiceSpeechRate);
-  }, [engine.plan, engine.blockIndex, engine.itemIndex, tts, selectedVoiceId, practiceSpeechRate]);
-
   const handleSubmit = useCallback(() => {
     if (!answer.trim() || submitted) return;
     setSubmitted(true);
@@ -163,7 +164,7 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId, speechRate 
 
   const handleDemoSkip = useCallback(() => {
     tts.stop();
-    engine.skipSection();
+    engine.skipItem();
   }, [engine, tts]);
 
   const handleKeyDown = useCallback(
@@ -265,65 +266,8 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId, speechRate 
 
         <div className="game-topic-row">{block.topic}</div>
 
-        <details>
-          <summary
-            style={{
-              cursor: 'pointer',
-              color: 'var(--color-primary)',
-              fontSize: 'var(--font-size-sm)',
-              fontWeight: 700,
-            }}
-          >
-            View practice summary (optional)
-          </summary>
-          <>
-            <div className="game-plan-meta" style={{ marginTop: 12 }}>
-              <span>{engine.plan.therapyBlocks.length} exercises</span>
-              <span aria-hidden="true">.</span>
-              <span>{totalItems} prompts</span>
-              <span aria-hidden="true">.</span>
-              <span>Difficulty: {engine.plan.patientProfile.difficulty}</span>
-              <span aria-hidden="true">.</span>
-              <span>~{engine.plan.sessionMetadata.estimatedDurationMinutes} min</span>
-            </div>
-            <div className="game-block-list">
-              {engine.plan.therapyBlocks.map((b) => (
-                <div key={b.blockId} className="game-block-preview">
-                  <span className="game-block-badge">
-                    {BLOCK_TYPE_LABELS[b.type] ?? b.type}
-                  </span>
-                  <span className="game-block-topic">{b.topic}</span>
-                </div>
-              ))}
-            </div>
-          </>
-        </details>
-
         <div className="game-audio-section">
           <div className="game-section-label">Prompt</div>
-          <div className="game-audio-controls">
-            <button
-              className="btn-primary game-audio-btn"
-              onClick={handlePlayPrompt}
-              disabled={tts.isPlaying || controlsDisabled}
-              aria-label={tts.isPlaying ? 'Playing prompt audio' : 'Play prompt audio'}
-            >
-              {tts.isPlaying ? 'Playing...' : 'Play Prompt'}
-            </button>
-            <button
-              className="btn-ghost"
-              onClick={() => setShowPromptText((v) => !v)}
-              aria-pressed={showPromptText}
-              aria-label={showPromptText ? 'Hide prompt text' : 'Show prompt text'}
-            >
-              {showPromptText ? 'Hide Text' : 'Show Text'}
-            </button>
-          </div>
-          {showPromptText && (
-            <div className="game-prompt-text fade-in" aria-live="polite">
-              {item.prompt}
-            </div>
-          )}
           {tts.error && (
             <div className="game-notice game-notice--error" role="alert">
               Audio unavailable: {tts.error}
@@ -381,33 +325,7 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId, speechRate 
         ) : (
           <div className="game-answer-section">
             <div className="game-section-label">Your answer</div>
-
-            <div className="game-stt-controls">
-              <button
-                className={`btn-secondary game-record-btn${stt.isRecording ? ' game-record-btn--active' : ''}`}
-                onMouseDown={() => {
-                  void handleRecordMouseDown();
-                }}
-                onMouseUp={handleRecordMouseUp}
-                onMouseLeave={handleRecordMouseUp}
-                disabled={controlsDisabled || stt.isTranscribing}
-                aria-label="Press and hold to record spoken answer"
-              >
-                {stt.isRecording ? 'Recording...' : 'Press and hold to talk'}
-              </button>
-              {stt.isRecording && (
-                <span className="game-recording-indicator" aria-live="assertive">
-                  <span className="game-recording-dot" aria-hidden="true" />
-                  Recording...
-                </span>
-              )}
-            </div>
-
-            {holdHint && (
-              <div className="game-notice" role="status">
-                {holdHint}
-              </div>
-            )}
+            <div className="game-notice">Use Hold to Talk above the orb.</div>
 
             {stt.error && (
               <div className="game-notice game-notice--error" role="alert">
@@ -440,12 +358,43 @@ export function GameTab({ plan, onGoHome, tts, stt, selectedVoiceId, speechRate 
           </div>
         )}
 
+        <details>
+          <summary
+            style={{
+              cursor: 'pointer',
+              color: 'var(--color-primary)',
+              fontSize: 'var(--font-size-sm)',
+              fontWeight: 700,
+            }}
+          >
+            View practice summary (optional)
+          </summary>
+          <>
+            <div className="game-plan-meta" style={{ marginTop: 12 }}>
+              <span>{engine.plan.therapyBlocks.length} exercises</span>
+              <span aria-hidden="true">.</span>
+              <span>{totalItems} prompts</span>
+              <span aria-hidden="true">.</span>
+              <span>Difficulty: {engine.plan.patientProfile.difficulty}</span>
+              <span aria-hidden="true">.</span>
+              <span>~{engine.plan.sessionMetadata.estimatedDurationMinutes} min</span>
+            </div>
+            <div className="game-block-list">
+              {engine.plan.therapyBlocks.map((b) => (
+                <div key={b.blockId} className="game-block-preview">
+                  <span className="game-block-badge">
+                    {BLOCK_TYPE_LABELS[b.type] ?? b.type}
+                  </span>
+                  <span className="game-block-topic">{b.topic}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        </details>
+
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <button className="btn-secondary game-end-early-btn" onClick={handleDemoSkip}>
             Demo Skip
-          </button>
-          <button className="btn-ghost game-end-early-btn" onClick={engine.end}>
-            End session
           </button>
         </div>
       </div>

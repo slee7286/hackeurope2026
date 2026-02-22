@@ -98,6 +98,7 @@ beforeEach(() => {
     loadPlan: vi.fn(),
     start: vi.fn(),
     submitAnswer: vi.fn(),
+    skipItem: vi.fn(),
     skipSection: vi.fn(),
     next: vi.fn(),
     end: vi.fn(),
@@ -107,11 +108,10 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
-  vi.useRealTimers();
 });
 
-describe('GameTab audio-first input flow', () => {
-  it('does not show textbox on initial load', () => {
+describe('GameTab voice handoff flow', () => {
+  it('shows no textbox initially and prompts to use orb controls', () => {
     render(
       <GameTab
         plan={plan}
@@ -124,87 +124,11 @@ describe('GameTab audio-first input flow', () => {
     );
 
     expect(screen.queryByLabelText('Answer input')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Press and hold to record spoken answer' })).toBeInTheDocument();
+    expect(screen.getByText('Use Hold to Talk above the orb.')).toBeInTheDocument();
   });
 
-  it('rejects short tap and shows hint', () => {
-    vi.useFakeTimers();
-
-    const startRecording = vi.fn(async () => {});
-    const stopRecording = vi.fn();
-
-    const { rerender } = render(
-      <GameTab
-        plan={plan}
-        onGoHome={vi.fn()}
-        tts={makeTts()}
-        stt={makeStt({ startRecording, stopRecording })}
-        selectedVoiceId="voice-1"
-        speechRate={0.8}
-      />
-    );
-
-    const recordButton = screen.getByRole('button', { name: 'Press and hold to record spoken answer' });
-    fireEvent.mouseDown(recordButton);
-
-    rerender(
-      <GameTab
-        plan={plan}
-        onGoHome={vi.fn()}
-        tts={makeTts()}
-        stt={makeStt({ isRecording: true, startRecording, stopRecording })}
-        selectedVoiceId="voice-1"
-        speechRate={0.8}
-      />
-    );
-
-    vi.advanceTimersByTime(100);
-    fireEvent.mouseUp(screen.getByRole('button', { name: 'Press and hold to record spoken answer' }));
-
-    expect(stopRecording).toHaveBeenCalledWith({ discard: true });
-    expect(screen.getByText('Press and hold to talk.')).toBeInTheDocument();
-  });
-
-  it('valid hold triggers transcription', () => {
-    vi.useFakeTimers();
-
-    const startRecording = vi.fn(async () => {});
-    const stopRecording = vi.fn();
-
-    const { rerender } = render(
-      <GameTab
-        plan={plan}
-        onGoHome={vi.fn()}
-        tts={makeTts()}
-        stt={makeStt({ startRecording, stopRecording })}
-        selectedVoiceId="voice-1"
-        speechRate={0.8}
-      />
-    );
-
-    fireEvent.mouseDown(screen.getByRole('button', { name: 'Press and hold to record spoken answer' }));
-
-    rerender(
-      <GameTab
-        plan={plan}
-        onGoHome={vi.fn()}
-        tts={makeTts()}
-        stt={makeStt({ isRecording: true, startRecording, stopRecording })}
-        selectedVoiceId="voice-1"
-        speechRate={0.8}
-      />
-    );
-
-    vi.advanceTimersByTime(500);
-    fireEvent.mouseUp(screen.getByRole('button', { name: 'Press and hold to record spoken answer' }));
-
-    expect(startRecording).toHaveBeenCalledTimes(1);
-    expect(stopRecording).toHaveBeenCalledWith({ discard: false });
-  });
-
-  it('shows textbox with transcript after successful transcription', () => {
-    const clearTranscript = vi.fn();
-
+  it('loads answer from voiceInput and marks it consumed', () => {
+    const onVoiceInputConsumed = vi.fn();
     const { rerender } = render(
       <GameTab
         plan={plan}
@@ -213,6 +137,8 @@ describe('GameTab audio-first input flow', () => {
         stt={makeStt()}
         selectedVoiceId="voice-1"
         speechRate={0.8}
+        voiceInput=""
+        onVoiceInputConsumed={onVoiceInputConsumed}
       />
     );
 
@@ -221,17 +147,19 @@ describe('GameTab audio-first input flow', () => {
         plan={plan}
         onGoHome={vi.fn()}
         tts={makeTts()}
-        stt={makeStt({ transcript: 'hello there', clearTranscript })}
+        stt={makeStt()}
         selectedVoiceId="voice-1"
         speechRate={0.8}
+        voiceInput="hello there"
+        onVoiceInputConsumed={onVoiceInputConsumed}
       />
     );
 
     expect(screen.getByLabelText('Answer input')).toHaveValue('hello there');
-    expect(clearTranscript).toHaveBeenCalledTimes(1);
+    expect(onVoiceInputConsumed).toHaveBeenCalledTimes(1);
   });
 
-  it('submits edited transcript text on confirm', () => {
+  it('submits edited voice answer on confirm', () => {
     const submitAnswer = vi.fn();
     useTherapyEngineMock.mockReturnValue({
       status: 'presenting',
@@ -244,12 +172,53 @@ describe('GameTab audio-first input flow', () => {
       loadPlan: vi.fn(),
       start: vi.fn(),
       submitAnswer,
+      skipItem: vi.fn(),
       skipSection: vi.fn(),
       next: vi.fn(),
       end: vi.fn(),
     });
 
-    const { rerender } = render(
+    render(
+      <GameTab
+        plan={plan}
+        onGoHome={vi.fn()}
+        tts={makeTts()}
+        stt={makeStt()}
+        selectedVoiceId="voice-1"
+        speechRate={0.8}
+        voiceInput="helo"
+        onVoiceInputConsumed={vi.fn()}
+      />
+    );
+
+    const input = screen.getByLabelText('Answer input');
+    fireEvent.change(input, { target: { value: 'hello' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    expect(submitAnswer).toHaveBeenCalledWith('hello');
+  });
+});
+
+describe('GameTab prompt and summary flow', () => {
+  it('reports the active prompt for orb playback', async () => {
+    const onActivePromptChange = vi.fn();
+    render(
+      <GameTab
+        plan={plan}
+        onGoHome={vi.fn()}
+        tts={makeTts()}
+        stt={makeStt()}
+        selectedVoiceId="voice-1"
+        speechRate={0.8}
+        onActivePromptChange={onActivePromptChange}
+      />
+    );
+
+    await waitFor(() => expect(onActivePromptChange).toHaveBeenCalledWith('Say hello'));
+  });
+
+  it('keeps practice summary at the bottom of the practice panel', () => {
+    render(
       <GameTab
         plan={plan}
         onGoHome={vi.fn()}
@@ -260,77 +229,13 @@ describe('GameTab audio-first input flow', () => {
       />
     );
 
-    rerender(
-      <GameTab
-        plan={plan}
-        onGoHome={vi.fn()}
-        tts={makeTts()}
-        stt={makeStt({ transcript: 'helo' })}
-        selectedVoiceId="voice-1"
-        speechRate={0.8}
-      />
-    );
-
-    const input = screen.getByLabelText('Answer input');
-    fireEvent.change(input, { target: { value: 'hello' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
-
-    expect(submitAnswer).toHaveBeenCalledWith('hello');
+    const summary = screen.getByText('View practice summary (optional)');
+    const answerLabel = screen.getByText('Your answer');
+    const relation = answerLabel.compareDocumentPosition(summary);
+    expect((relation & Node.DOCUMENT_POSITION_FOLLOWING) !== 0).toBe(true);
   });
 
-  it('re-record replaces previous transcript text', () => {
-    vi.useFakeTimers();
-
-    const startRecording = vi.fn(async () => {});
-    const stopRecording = vi.fn();
-
-    const { rerender } = render(
-      <GameTab
-        plan={plan}
-        onGoHome={vi.fn()}
-        tts={makeTts()}
-        stt={makeStt({ transcript: 'first try', startRecording, stopRecording })}
-        selectedVoiceId="voice-1"
-        speechRate={0.8}
-      />
-    );
-
-    expect(screen.getByLabelText('Answer input')).toHaveValue('first try');
-
-    fireEvent.mouseDown(screen.getByRole('button', { name: 'Press and hold to record spoken answer' }));
-
-    rerender(
-      <GameTab
-        plan={plan}
-        onGoHome={vi.fn()}
-        tts={makeTts()}
-        stt={makeStt({ isRecording: true, transcript: 'first try', startRecording, stopRecording })}
-        selectedVoiceId="voice-1"
-        speechRate={0.8}
-      />
-    );
-
-    vi.advanceTimersByTime(500);
-    fireEvent.mouseUp(screen.getByRole('button', { name: 'Press and hold to record spoken answer' }));
-
-    rerender(
-      <GameTab
-        plan={plan}
-        onGoHome={vi.fn()}
-        tts={makeTts()}
-        stt={makeStt({ transcript: 'second try', startRecording, stopRecording })}
-        selectedVoiceId="voice-1"
-        speechRate={0.8}
-      />
-    );
-
-    expect(stopRecording).toHaveBeenCalledWith({ discard: false });
-    expect(screen.getByLabelText('Answer input')).toHaveValue('second try');
-  });
-});
-
-describe('GameTab plan handoff flow', () => {
-  it('starts with practice summary hidden and reveals it from dropdown', () => {
+  it('starts with summary collapsed and reveals details when opened', () => {
     render(
       <GameTab
         plan={plan}
@@ -348,7 +253,7 @@ describe('GameTab plan handoff flow', () => {
     expect(difficultyText).toBeVisible();
   });
 
-  it('auto-starts practice when plan is loaded', async () => {
+  it('auto-starts practice when a loaded plan is provided', async () => {
     const start = vi.fn();
     useTherapyEngineMock.mockReturnValue({
       status: 'loaded',
@@ -361,6 +266,7 @@ describe('GameTab plan handoff flow', () => {
       loadPlan: vi.fn(),
       start,
       submitAnswer: vi.fn(),
+      skipItem: vi.fn(),
       skipSection: vi.fn(),
       next: vi.fn(),
       end: vi.fn(),
@@ -378,13 +284,12 @@ describe('GameTab plan handoff flow', () => {
     );
 
     await waitFor(() => expect(start).toHaveBeenCalledTimes(1));
-    expect(screen.queryByRole('button', { name: 'Begin practice' })).not.toBeInTheDocument();
   });
 });
 
-describe('GameTab demo skip flow', () => {
-  it('triggers section skip and stops audio when Demo Skip is pressed', () => {
-    const skipSection = vi.fn();
+describe('GameTab controls', () => {
+  it('triggers question skip and stops audio when Demo Skip is pressed', () => {
+    const skipItem = vi.fn();
     const stop = vi.fn();
 
     useTherapyEngineMock.mockReturnValue({
@@ -398,7 +303,8 @@ describe('GameTab demo skip flow', () => {
       loadPlan: vi.fn(),
       start: vi.fn(),
       submitAnswer: vi.fn(),
-      skipSection,
+      skipItem,
+      skipSection: vi.fn(),
       next: vi.fn(),
       end: vi.fn(),
     });
@@ -415,7 +321,22 @@ describe('GameTab demo skip flow', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Demo Skip' }));
-    expect(skipSection).toHaveBeenCalledTimes(1);
+    expect(skipItem).toHaveBeenCalledTimes(1);
     expect(stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not render an End session button during practice', () => {
+    render(
+      <GameTab
+        plan={plan}
+        onGoHome={vi.fn()}
+        tts={makeTts()}
+        stt={makeStt()}
+        selectedVoiceId="voice-1"
+        speechRate={0.8}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: 'End session' })).not.toBeInTheDocument();
   });
 });
