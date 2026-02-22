@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { Layout } from './components/Layout';
 import { VoiceControls } from './components/VoiceControls';
 import { SessionHistory } from './components/SessionHistory';
@@ -50,6 +50,10 @@ export default function App() {
     return Math.min(MAX_PRACTICE_QUESTIONS, Math.max(MIN_PRACTICE_QUESTIONS, Math.trunc(raw)));
   });
   const lastAutoPlayedAiMessageKeyRef = useRef<string | null>(null);
+  const orbMotionRef = useRef<HTMLDivElement | null>(null);
+  const orbPreviousRectRef = useRef<DOMRect | null>(null);
+  const orbTransitionCleanupTimerRef = useRef<number | null>(null);
+  const wasPlanReadyRef = useRef(false);
 
   const { state, start, send, demoSkip } = useSession();
   const stt = useSpeechToText();
@@ -126,6 +130,59 @@ export default function App() {
     lastAutoPlayedAiMessageKeyRef.current = nextAiMessageKey;
     void speak(nextAiMessage, selectedVoiceId, speechRate);
   }, [view, state.messages, state.sessionId, selectedVoiceId, speechRate, speak]);
+
+  useLayoutEffect(() => {
+    const orbMotionNode = orbMotionRef.current;
+    if (!orbMotionNode) {
+      orbPreviousRectRef.current = null;
+      wasPlanReadyRef.current = planReady;
+      return;
+    }
+
+    const currentRect = orbMotionNode.getBoundingClientRect();
+    const previousRect = orbPreviousRectRef.current;
+    const transitionedMode = planReady !== wasPlanReadyRef.current;
+
+    if (transitionedMode && previousRect) {
+      const deltaX = previousRect.left - currentRect.left;
+      const deltaY = previousRect.top - currentRect.top;
+      const scaleX = previousRect.width / Math.max(currentRect.width, 1);
+      const scaleY = previousRect.height / Math.max(currentRect.height, 1);
+
+      orbMotionNode.style.willChange = 'transform';
+      orbMotionNode.style.transformOrigin = 'top left';
+      orbMotionNode.style.transition = 'none';
+      orbMotionNode.style.transform = `translate(${deltaX.toFixed(2)}px, ${deltaY.toFixed(2)}px) scale(${scaleX.toFixed(
+        4
+      )}, ${scaleY.toFixed(4)})`;
+
+      requestAnimationFrame(() => {
+        orbMotionNode.style.transition = 'transform 760ms cubic-bezier(0.22, 1, 0.36, 1)';
+        orbMotionNode.style.transform = 'translate(0, 0) scale(1, 1)';
+      });
+
+      if (orbTransitionCleanupTimerRef.current !== null) {
+        window.clearTimeout(orbTransitionCleanupTimerRef.current);
+      }
+      orbTransitionCleanupTimerRef.current = window.setTimeout(() => {
+        orbMotionNode.style.willChange = '';
+        orbMotionNode.style.transformOrigin = '';
+        orbMotionNode.style.transition = '';
+      }, 820);
+    }
+
+    orbPreviousRectRef.current = currentRect;
+    wasPlanReadyRef.current = planReady;
+  }, [planReady]);
+
+  useEffect(
+    () => () => {
+      if (orbTransitionCleanupTimerRef.current !== null) {
+        window.clearTimeout(orbTransitionCleanupTimerRef.current);
+      }
+    },
+    []
+  );
 
   const handleStartSession = useCallback(async () => {
     setActivePracticePrompt(null);
@@ -280,13 +337,15 @@ export default function App() {
                   </div>
 
                   <div className="session-orb-container">
-                    <SpeechIndicatorOrb
-                      audioElement={tts.currentAudio}
-                      isPlaying={tts.isPlaying}
-                      spokenText={tts.currentText}
-                      wordTimings={tts.currentWordTimings}
-                      captionsEnabled={captionsEnabled}
-                    />
+                    <div className="session-orb-motion" ref={orbMotionRef}>
+                      <SpeechIndicatorOrb
+                        audioElement={tts.currentAudio}
+                        isPlaying={tts.isPlaying}
+                        spokenText={tts.currentText}
+                        wordTimings={tts.currentWordTimings}
+                        captionsEnabled={captionsEnabled}
+                      />
+                    </div>
                   </div>
                 </div>
 

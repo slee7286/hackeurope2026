@@ -382,7 +382,7 @@ textarea:disabled {
   align-items: flex-start;
   width: 100%;
   min-height: clamp(280px, 40vh, 430px);
-  padding: 6px 0 54px;
+  padding: 0 0 54px;
 }
 
 .session-flow--practice .session-orb-panel {
@@ -391,7 +391,7 @@ textarea:disabled {
 
 .session-flow--practice .session-orb-container {
   position: absolute;
-  top: 8px;
+  top: 0;
   left: 8px;
   width: auto;
   min-height: 0;
@@ -405,7 +405,10 @@ textarea:disabled {
   width: min(38vw, 300px);
   min-width: 220px;
   transform: translate(0, 0);
-  animation: orbSlideToCorner 2s ease-in-out both;
+}
+
+.session-orb-motion {
+  transform: translateZ(0);
 }
 
 .speech-orb-shell {
@@ -415,8 +418,8 @@ textarea:disabled {
   position: relative;
   display: grid;
   place-items: center;
-  transform: translateY(-18px);
-  transition: transform 2s ease-in-out, width 2s ease-in-out, min-width 2s ease-in-out;
+  transform: translateY(-34px);
+  transition: width 760ms cubic-bezier(0.22, 1, 0.36, 1), min-width 760ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .session-flow--practice .speech-orb-caption {
@@ -1109,15 +1112,6 @@ textarea:disabled {
   }
 }
 
-@keyframes orbSlideToCorner {
-  from {
-    transform: translate(320px, 36px);
-  }
-  to {
-    transform: translate(0, 0);
-  }
-}
-
 @media (max-width: 760px) {
   .surface-panel {
     padding: 18px;
@@ -1137,7 +1131,7 @@ textarea:disabled {
 
   .session-orb-container {
     min-height: clamp(240px, 34vh, 320px);
-    padding: 4px 0 44px;
+    padding: 0 0 44px;
   }
 
   .session-captions-toggle-row {
@@ -1147,7 +1141,7 @@ textarea:disabled {
   .speech-orb-shell {
     width: min(92vw, 420px);
     min-width: 260px;
-    transform: translateY(-10px);
+    transform: translateY(-18px);
   }
 
   .session-flow--practice .speech-orb-shell {
@@ -1163,7 +1157,7 @@ textarea:disabled {
   }
 
   .session-flow--practice .session-orb-container {
-    top: 8px;
+    top: 0;
     left: 8px;
     min-height: 0;
     padding: 0;
