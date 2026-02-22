@@ -169,9 +169,10 @@ export default function App() {
       sessionMode={sessionMode}
     >
       {view === 'home' && (
-        <section className="surface-panel fade-in">
-          <h2 className="panel-title">Welcome</h2>
-          <p className="panel-copy">Select what you would like to do.</p>
+        <section className="surface-panel home-panel fade-in">
+          <h2 className="panel-title">Welcome.</h2>
+          <hr className="home-divider" />
+          {/* <p className="panel-copy">Select what you would like to do.</p> */}
           <div className="home-actions">
             <button onClick={handleStartSession} className="btn-primary home-btn">
               Check into session
