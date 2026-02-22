@@ -98,7 +98,7 @@ export function VoiceControls({
           borderRadius: 'var(--radius-sm)',
         }}
       >
-        {stt.isRecording ? 'Recording...' : stt.isTranscribing ? 'Transcribing...' : 'Hold to Talk'}
+        {stt.isRecording ? 'Listening...' : stt.isTranscribing ? 'Transcribing...' : 'Hold to Talk'}
       </button>
 
       {!buttonsOnly && (
@@ -127,7 +127,7 @@ export function VoiceControls({
                 }}
                 aria-hidden="true"
               />
-              Recording... release to stop.
+              Listening... release to stop.
             </div>
           )}
 

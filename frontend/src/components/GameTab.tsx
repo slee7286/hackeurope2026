@@ -379,7 +379,7 @@ export function GameTab({
         ) : (
           <div className="game-answer-section">
             <div className="game-section-label">Your answer</div>
-            <div className="game-notice">Use Hold to Talk above the orb.</div>
+            <div className="game-notice">Use Hold to Talk.</div>
 
             {stt.error && (
               <div className="game-notice game-notice--error" role="alert">

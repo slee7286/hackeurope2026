@@ -124,7 +124,7 @@ describe('GameTab voice handoff flow', () => {
     );
 
     expect(screen.queryByLabelText('Answer input')).not.toBeInTheDocument();
-    expect(screen.getByText('Use Hold to Talk above the orb.')).toBeInTheDocument();
+    expect(screen.getByText('Use Hold to Talk.')).toBeInTheDocument();
   });
 
   it('loads answer from voiceInput and marks it consumed', () => {
