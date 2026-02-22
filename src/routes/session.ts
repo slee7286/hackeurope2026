@@ -25,6 +25,14 @@ export const sessionRouter = Router();
 const DEFAULT_PATIENT_ID = "P-12345";
 const DEFAULT_HISTORY_LIMIT = 20;
 const MAX_HISTORY_LIMIT = 50;
+const MIN_PRACTICE_QUESTIONS = 4;
+const MAX_PRACTICE_QUESTIONS = 50;
+
+function parsePracticeQuestionCount(value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+  const next = Math.trunc(value);
+  return Math.min(MAX_PRACTICE_QUESTIONS, Math.max(MIN_PRACTICE_QUESTIONS, next));
+}
 
 function toTopicList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -82,17 +90,19 @@ function buildPracticeSummaryFields(input: {
 
 sessionRouter.post(
   "/start",
-  async (_req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { sessionId, firstMessage } = await startSession();
+      const requestBody = (req.body ?? {}) as { practiceQuestionCount?: number };
+      const practiceQuestionCount = parsePracticeQuestionCount(requestBody.practiceQuestionCount);
+      const { sessionId, firstMessage } = await startSession({ practiceQuestionCount });
 
-      const body: StartSessionResponse = {
+      const responseBody: StartSessionResponse = {
         sessionId,
         message: firstMessage,
         status: "active",
       };
 
-      res.status(200).json(body);
+      res.status(200).json(responseBody);
     } catch (err) {
       next(err);
     }
@@ -101,17 +111,19 @@ sessionRouter.post(
 
 sessionRouter.post(
   "/demo-skip",
-  async (_req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { sessionId, firstMessage, status } = await startDemoSkipSession();
+      const requestBody = (req.body ?? {}) as { practiceQuestionCount?: number };
+      const practiceQuestionCount = parsePracticeQuestionCount(requestBody.practiceQuestionCount);
+      const { sessionId, firstMessage, status } = await startDemoSkipSession({ practiceQuestionCount });
 
-      const body: StartSessionResponse = {
+      const responseBody: StartSessionResponse = {
         sessionId,
         message: firstMessage,
         status,
       };
 
-      res.status(200).json(body);
+      res.status(200).json(responseBody);
     } catch (err) {
       next(err);
     }

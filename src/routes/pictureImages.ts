@@ -8,11 +8,12 @@ pictureImagesRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const target = String(req.query.targetConcept ?? req.query.target ?? "").trim();
+      const topic = String(req.query.topic ?? "").trim();
       if (!target) {
         res.status(400).json({ error: "Missing required 'targetConcept' query parameter." });
         return;
       }
-      const choices = await getPictureDescriptionChoices(target);
+      const choices = await getPictureDescriptionChoices(target, topic);
       res.json({ choices });
     } catch (err) {
       next(err);

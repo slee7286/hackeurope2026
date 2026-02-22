@@ -170,6 +170,8 @@ export function useTextToSpeech(): UseTextToSpeechResult {
         objectUrlRef.current = audioUrl;
 
         const audio = new Audio(audioUrl);
+        // Keep ElevenLabs playback at maximum client-side volume.
+        audio.volume = 1.0;
         audioRef.current = audio;
         setCurrentAudio(audio);
 

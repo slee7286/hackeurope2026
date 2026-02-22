@@ -103,6 +103,13 @@ input[type='text']:disabled {
   padding: 28px 16px 44px;
 }
 
+.app-shell--practice {
+  background:
+    radial-gradient(circle at 18% 14%, rgba(91, 70, 184, 0.22), transparent 44%),
+    radial-gradient(circle at 85% 16%, rgba(46, 157, 175, 0.2), transparent 46%),
+    linear-gradient(135deg, #e9e4fb 0%, #dff5f8 100%);
+}
+
 .app-container {
   width: 100%;
   max-width: var(--max-width);
@@ -226,6 +233,7 @@ input[type='text']:disabled {
   flex-direction: column;
   gap: 14px;
   min-height: 220px;
+  position: relative;
 }
 
 .session-orb-panel {
@@ -344,6 +352,29 @@ input[type='text']:disabled {
   padding: 6px 0 54px;
 }
 
+.session-flow--practice .session-orb-panel {
+  align-items: flex-start;
+}
+
+.session-flow--practice .session-orb-container {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  justify-content: flex-start;
+  align-items: flex-start;
+  z-index: 2;
+}
+
+.session-flow--practice .speech-orb-shell {
+  width: min(38vw, 300px);
+  min-width: 220px;
+  transform: translate(0, 0);
+  animation: orbSlideToCorner 2s ease-in-out both;
+}
+
 .speech-orb-shell {
   width: min(48vw, 360px);
   aspect-ratio: 1;
@@ -352,6 +383,30 @@ input[type='text']:disabled {
   display: grid;
   place-items: center;
   transform: translateY(-18px);
+  transition: transform 2s ease-in-out, width 2s ease-in-out, min-width 2s ease-in-out;
+}
+
+.session-flow--practice .speech-orb-caption {
+  top: 46%;
+  left: calc(100% + 16px);
+  right: auto;
+  width: min(44vw, 520px);
+  max-width: min(44vw, 520px);
+  justify-content: flex-start;
+  text-align: left;
+  transform: translateY(-50%);
+}
+
+.session-flow--practice .speech-orb-sentence {
+  justify-content: flex-start;
+}
+
+.session-flow--practice .session-voice-controls {
+  justify-content: center;
+}
+
+.session-flow--practice .session-voice-output {
+  margin-top: 200px;
 }
 
 .speech-orb-stage {
@@ -994,6 +1049,15 @@ input[type='text']:disabled {
   }
 }
 
+@keyframes orbSlideToCorner {
+  from {
+    transform: translate(320px, 36px);
+  }
+  to {
+    transform: translate(0, 0);
+  }
+}
+
 @media (max-width: 760px) {
   .surface-panel {
     padding: 18px;
@@ -1026,10 +1090,34 @@ input[type='text']:disabled {
     transform: translateY(-10px);
   }
 
+  .session-flow--practice .speech-orb-shell {
+    width: min(58vw, 260px);
+    min-width: 180px;
+    transform: translate(0, 0);
+  }
+
   .speech-orb-caption {
     top: calc(50% + clamp(52px, 11vw, 80px));
     width: min(98vw, 640px);
     max-width: calc(100vw - 18px);
+  }
+
+  .session-flow--practice .session-orb-container {
+    top: 8px;
+    left: 8px;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .session-flow--practice .speech-orb-caption {
+    left: calc(100% + 10px);
+    right: auto;
+    width: min(56vw, 360px);
+    max-width: min(56vw, 360px);
+  }
+
+  .session-flow--practice .session-voice-output {
+    margin-top: 140px;
   }
 }
 

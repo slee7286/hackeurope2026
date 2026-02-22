@@ -21,7 +21,8 @@ interface VoicesPayload {
 interface AdminVoiceSettingsProps {
   currentVoiceId: string;
   currentSpeechRate: number;
-  onApply: (voiceId: string, speechRate: number, descriptor: string) => void;
+  currentPracticeQuestionCount: number;
+  onApply: (voiceId: string, speechRate: number, descriptor: string, practiceQuestionCount: number) => void;
 }
 
 type AbilityLevel = 'needs_support' | 'balanced' | 'independent';
@@ -67,7 +68,15 @@ function getClosestAbilityLevel(speechRate: number): AbilityLevel {
   return closest.level;
 }
 
-export function AdminVoiceSettings({ currentVoiceId, currentSpeechRate, onApply }: AdminVoiceSettingsProps) {
+const MIN_PRACTICE_QUESTIONS = 4;
+const MAX_PRACTICE_QUESTIONS = 50;
+
+export function AdminVoiceSettings({
+  currentVoiceId,
+  currentSpeechRate,
+  currentPracticeQuestionCount,
+  onApply,
+}: AdminVoiceSettingsProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [payload, setPayload] = useState<VoicesPayload | null>(null);
@@ -75,10 +84,19 @@ export function AdminVoiceSettings({ currentVoiceId, currentSpeechRate, onApply 
   const [abilityLevel, setAbilityLevel] = useState<AbilityLevel>(
     getClosestAbilityLevel(currentSpeechRate),
   );
+  const [practiceQuestionCountInput, setPracticeQuestionCountInput] = useState<string>(
+    String(currentPracticeQuestionCount),
+  );
+  const [practiceQuestionCountError, setPracticeQuestionCountError] = useState<string | null>(null);
 
   useEffect(() => {
     setAbilityLevel(getClosestAbilityLevel(currentSpeechRate));
   }, [currentSpeechRate]);
+
+  useEffect(() => {
+    setPracticeQuestionCountInput(String(currentPracticeQuestionCount));
+    setPracticeQuestionCountError(null);
+  }, [currentPracticeQuestionCount]);
 
   useEffect(() => {
     let alive = true;
@@ -141,10 +159,35 @@ export function AdminVoiceSettings({ currentVoiceId, currentSpeechRate, onApply 
     );
   }, [abilityLevel]);
 
+  const parsePracticeQuestionCount = (raw: string): number | null => {
+    if (!raw.trim()) return null;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) return null;
+    return parsed;
+  };
+
+  const getValidatedPracticeQuestionCount = (): number | null => {
+    const parsed = parsePracticeQuestionCount(practiceQuestionCountInput);
+    if (parsed === null) {
+      setPracticeQuestionCountError(
+        `Enter a whole number between ${MIN_PRACTICE_QUESTIONS} and ${MAX_PRACTICE_QUESTIONS}.`,
+      );
+      return null;
+    }
+    if (parsed < MIN_PRACTICE_QUESTIONS || parsed > MAX_PRACTICE_QUESTIONS) {
+      setPracticeQuestionCountError(
+        `Number of practice questions must be between ${MIN_PRACTICE_QUESTIONS} and ${MAX_PRACTICE_QUESTIONS}.`,
+      );
+      return null;
+    }
+    setPracticeQuestionCountError(null);
+    return parsed;
+  };
+
   const onDialectChange = (nextDialect: string) => {
     setDialect(nextDialect);
   };
-  const applyDisabled = !selectedEntry?.voice_id?.trim();
+  const applyDisabled = !selectedEntry?.voice_id?.trim() || !!practiceQuestionCountError;
 
   return (
     <section className="surface-panel fade-in admin-panel">
@@ -189,13 +232,45 @@ export function AdminVoiceSettings({ currentVoiceId, currentSpeechRate, onApply 
             </select>
           </label>
 
+          <label className="admin-field">
+            <span>Number of practice questions</span>
+            <input
+              type="number"
+              min={MIN_PRACTICE_QUESTIONS}
+              max={MAX_PRACTICE_QUESTIONS}
+              step={1}
+              value={practiceQuestionCountInput}
+              onChange={(event) => {
+                setPracticeQuestionCountInput(event.target.value);
+                if (practiceQuestionCountError) setPracticeQuestionCountError(null);
+              }}
+              onBlur={() => {
+                const validated = getValidatedPracticeQuestionCount();
+                if (validated !== null) {
+                  setPracticeQuestionCountInput(String(validated));
+                }
+              }}
+            />
+            {practiceQuestionCountError && (
+              <span className="admin-note" role="alert">
+                {practiceQuestionCountError}
+              </span>
+            )}
+          </label>
+
           <div className="admin-actions">
             <button
               className="btn-primary"
-              onClick={() =>
-                selectedEntry &&
-                onApply(selectedEntry.voice_id.trim(), selectedAbilityPreset.speechRate, selectedEntry.accent_description)
-              }
+              onClick={() => {
+                const validatedPracticeQuestionCount = getValidatedPracticeQuestionCount();
+                if (!selectedEntry || validatedPracticeQuestionCount === null) return;
+                onApply(
+                  selectedEntry.voice_id.trim(),
+                  selectedAbilityPreset.speechRate,
+                  selectedEntry.accent_description,
+                  validatedPracticeQuestionCount,
+                );
+              }}
               disabled={applyDisabled}
             >
               Apply settings

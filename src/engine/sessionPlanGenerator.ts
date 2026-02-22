@@ -5,6 +5,9 @@ import type {
   FinalizeSessionArgs,
   TherapySessionPlan,
   TherapyBlock,
+  TherapyItem,
+  BlockType,
+  Difficulty,
   PracticeQuestion,
   SessionSummary,
 } from "../types";
@@ -25,6 +28,28 @@ interface RawPlanResponse {
   practiceQuestions?: PracticeQuestion[];
 }
 
+const MIN_PRACTICE_QUESTIONS = 4;
+const MAX_PRACTICE_QUESTIONS = 50;
+const DEFAULT_PRACTICE_QUESTIONS = 10;
+const BLOCK_TYPES: BlockType[] = [
+  "picture_description",
+  "word_repetition",
+  "sentence_completion",
+  "word_finding",
+];
+
+interface PlanGenerationOptions {
+  practiceQuestionCount?: number;
+}
+
+interface FlattenedTherapyItem {
+  type: BlockType;
+  topic: string;
+  difficulty: Difficulty;
+  description: string;
+  item: TherapyItem;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
@@ -39,6 +64,157 @@ function extractJson(text: string): string {
   const start = text.indexOf("{");
   if (start !== -1) return text.slice(start);
   return text.trim();
+}
+
+function normalisePracticeQuestionCount(value: number | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return DEFAULT_PRACTICE_QUESTIONS;
+  }
+  const rounded = Math.trunc(value);
+  return Math.min(MAX_PRACTICE_QUESTIONS, Math.max(MIN_PRACTICE_QUESTIONS, rounded));
+}
+
+function topicSeed(topic: string): string {
+  const cleaned = topic.trim().split(/\s+/).filter(Boolean);
+  if (cleaned.length === 0) return "word";
+  return cleaned[0].toLowerCase();
+}
+
+function makeFallbackItem(type: BlockType, topic: string, index: number): TherapyItem {
+  const seed = topicSeed(topic);
+  switch (type) {
+    case "picture_description":
+      return {
+        prompt: `Choose the image of ${seed}`,
+        answer: seed,
+        distractors: ["chair", "car", "tree"],
+      };
+    case "word_repetition":
+      return { prompt: `Say this word: ${seed}`, answer: seed };
+    case "sentence_completion":
+      return { prompt: `Complete: I see a ___`, answer: seed };
+    case "word_finding":
+      return { prompt: `Name this item: ${seed}`, answer: seed };
+    default:
+      return { prompt: `Practice item ${index + 1}`, answer: seed };
+  }
+}
+
+function flattenTherapyBlocks(blocks: TherapyBlock[]): FlattenedTherapyItem[] {
+  const output: FlattenedTherapyItem[] = [];
+  for (const block of blocks) {
+    const type = BLOCK_TYPES.includes(block.type) ? block.type : null;
+    if (!type) continue;
+    for (const item of block.items ?? []) {
+      output.push({
+        type,
+        topic: block.topic,
+        difficulty: block.difficulty,
+        description: block.description,
+        item,
+      });
+    }
+  }
+  return output;
+}
+
+function buildTargetCounts(totalQuestions: number): Record<BlockType, number> {
+  const counts: Record<BlockType, number> = {
+    picture_description: 0,
+    word_repetition: 0,
+    sentence_completion: 0,
+    word_finding: 0,
+  };
+
+  if (totalQuestions === 4) {
+    for (const type of BLOCK_TYPES) counts[type] = 1;
+    return counts;
+  }
+
+  const pictureCount = Math.floor(totalQuestions / 2) + 1;
+  counts.picture_description = pictureCount;
+
+  let remaining = totalQuestions - pictureCount;
+  const otherTypes = BLOCK_TYPES.filter((type) => type !== "picture_description");
+  let idx = 0;
+  while (remaining > 0) {
+    const type = otherTypes[idx % otherTypes.length];
+    counts[type] += 1;
+    remaining -= 1;
+    idx += 1;
+  }
+
+  return counts;
+}
+
+function rebalanceTherapyBlocks(
+  rawBlocks: TherapyBlock[],
+  args: FinalizeSessionArgs,
+  totalQuestions: number
+): TherapyBlock[] {
+  const flattened = flattenTherapyBlocks(rawBlocks);
+  const byType: Record<BlockType, FlattenedTherapyItem[]> = {
+    picture_description: [],
+    word_repetition: [],
+    sentence_completion: [],
+    word_finding: [],
+  };
+
+  for (const row of flattened) {
+    byType[row.type].push(row);
+  }
+
+  const targetCounts = buildTargetCounts(totalQuestions);
+  const defaultTopics = args.interests.length > 0 ? args.interests : ["daily life"];
+  const nextBlocks: TherapyBlock[] = [];
+  let blockCounter = 1;
+
+  for (const type of BLOCK_TYPES) {
+    const target = targetCounts[type];
+    if (target <= 0) continue;
+
+    const sourceItems = byType[type];
+    const items: TherapyItem[] = [];
+    let blockTopic =
+      sourceItems[0]?.topic ??
+      defaultTopics[(blockCounter - 1) % defaultTopics.length] ??
+      "daily life";
+    let blockDifficulty: Difficulty = sourceItems[0]?.difficulty ?? args.difficulty;
+    let blockDescription =
+      sourceItems[0]?.description ?? `Practice ${type.replace(/_/g, " ")}`;
+
+    for (let i = 0; i < target; i += 1) {
+      const source = sourceItems.length > 0 ? sourceItems[i % sourceItems.length] : null;
+      const topic = source?.topic ?? defaultTopics[i % defaultTopics.length] ?? blockTopic;
+      if (i === 0) blockTopic = topic;
+      const nextItem = source?.item ?? makeFallbackItem(type, topic, i);
+      items.push({
+        ...nextItem,
+        distractors:
+          type === "picture_description"
+            ? (Array.isArray(nextItem.distractors) && nextItem.distractors.length > 0
+              ? nextItem.distractors.slice(0, 3)
+              : ["chair", "car", "tree"])
+            : undefined,
+      });
+      if (source) {
+        blockDifficulty = source.difficulty;
+        blockDescription = source.description;
+      }
+    }
+
+    nextBlocks.push({
+      blockId: `block-${blockCounter}`,
+      type,
+      topic: blockTopic,
+      difficulty: blockDifficulty,
+      description: blockDescription,
+      items,
+    });
+    blockCounter += 1;
+  }
+
+  return nextBlocks;
 }
 
 // ─── Session Summary Builder ──────────────────────────────────────────────────
@@ -90,14 +266,18 @@ function buildSessionSummary(
  */
 export async function generateSessionPlan(
   sessionId: string,
-  args: FinalizeSessionArgs
+  args: FinalizeSessionArgs,
+  options: PlanGenerationOptions = {}
 ): Promise<void> {
   const session = sessionStore.get(sessionId);
   if (!session) {
     throw new Error(`Session ${sessionId} not found during plan generation`);
   }
 
-  const userPrompt = buildPlanPrompt(args);
+  const practiceQuestionCount = normalisePracticeQuestionCount(
+    options.practiceQuestionCount ?? session.practiceQuestionCount
+  );
+  const userPrompt = buildPlanPrompt(args, practiceQuestionCount);
 
   const response = await getClient().messages.create({
     model: "claude-haiku-4-5-20251001",
@@ -135,6 +315,12 @@ export async function generateSessionPlan(
     related_theme: q.related_theme ?? (args.main_themes?.[0] ?? args.mood),
   }));
 
+  const balancedTherapyBlocks = rebalanceTherapyBlocks(
+    parsed.therapyBlocks,
+    args,
+    practiceQuestionCount
+  );
+
   const plan: TherapySessionPlan = {
     patientProfile: {
       mood: args.mood,
@@ -148,7 +334,7 @@ export async function generateSessionPlan(
       estimatedDurationMinutes:
         parsed.estimatedDurationMinutes ?? args.estimatedDurationMinutes,
     },
-    therapyBlocks: parsed.therapyBlocks.map((block, index) => ({
+    therapyBlocks: balancedTherapyBlocks.map((block, index) => ({
       ...block,
       // Guarantee blockId is always present even if Claude omits it
       blockId: block.blockId ?? `block-${index + 1}`,
@@ -169,7 +355,7 @@ export async function generateSessionPlan(
  * the model can ground both therapy blocks and practice questions in
  * what was actually discussed during the session.
  */
-function buildPlanPrompt(args: FinalizeSessionArgs): string {
+function buildPlanPrompt(args: FinalizeSessionArgs, practiceQuestionCount: number): string {
   const lines: string[] = [
     "Patient profile:",
     `- Mood today: ${args.mood}`,
@@ -177,6 +363,7 @@ function buildPlanPrompt(args: FinalizeSessionArgs): string {
     `- Chosen difficulty: ${args.difficulty}`,
     `- Clinical notes: ${args.notes}`,
     `- Target session duration: ${args.estimatedDurationMinutes} minutes`,
+    `- Practice questions required: ${practiceQuestionCount}`,
   ];
 
   if (args.main_themes && args.main_themes.length > 0) {
@@ -197,6 +384,9 @@ function buildPlanPrompt(args: FinalizeSessionArgs): string {
     "Generate a therapy session plan for this patient.",
     "Use their interests as topics for therapy blocks.",
     "Match the difficulty level throughout.",
+    `Generate exactly ${practiceQuestionCount} total therapy items across all therapyBlocks.`,
+    "If total items are 4, create a balanced set with one item from each type: picture_description, word_repetition, sentence_completion, word_finding.",
+    "If total items are greater than 4, picture_description must be the majority type (strictly more than half).",
     "Use any themes, challenges, or goals to inform the practice questions.",
     "Return valid JSON only."
   );

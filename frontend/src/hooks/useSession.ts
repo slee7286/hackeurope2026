@@ -82,7 +82,7 @@ export function useSession() {
   );
 
   /** Start a fresh session. Fetches Claude's greeting and sets sessionId. */
-  const start = useCallback(async () => {
+  const start = useCallback(async (practiceQuestionCount?: number) => {
     stopPolling();
     setState((prev) => ({
       ...prev,
@@ -93,7 +93,7 @@ export function useSession() {
       plan: null,
     }));
     try {
-      const { sessionId, patientId, message } = await startSession();
+      const { sessionId, patientId, message } = await startSession(practiceQuestionCount);
       setState((prev) => ({
         ...prev,
         sessionId,
@@ -114,7 +114,7 @@ export function useSession() {
   }, [stopPolling]);
 
   /** Start demo mode and bypass counselling by auto-generating required profile fields. */
-  const demoSkip = useCallback(async () => {
+  const demoSkip = useCallback(async (practiceQuestionCount?: number) => {
     stopPolling();
     setState((prev) => ({
       ...prev,
@@ -125,7 +125,7 @@ export function useSession() {
       plan: null,
     }));
     try {
-      const { sessionId, patientId, message, status } = await startDemoSkipSession();
+      const { sessionId, patientId, message, status } = await startDemoSkipSession(practiceQuestionCount);
       setState((prev) => ({
         ...prev,
         sessionId,
