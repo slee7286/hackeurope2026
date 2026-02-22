@@ -73,6 +73,7 @@ button:disabled {
 }
 
 input[type='text'],
+input[type='number'],
 select,
 textarea {
   font-family: inherit;
@@ -87,13 +88,17 @@ textarea {
 }
 
 input[type='text']:focus,
+input[type='number']:focus,
 select:focus,
 textarea:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(93, 129, 143, 0.16);
 }
 
-input[type='text']:disabled {
+input[type='text']:disabled,
+input[type='number']:disabled,
+select:disabled,
+textarea:disabled {
   background: var(--color-surface-alt);
   color: var(--color-text-muted);
 }
