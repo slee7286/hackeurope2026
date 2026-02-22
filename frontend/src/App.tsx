@@ -13,6 +13,7 @@ import { useTextToSpeech } from './hooks/useTextToSpeech';
 const DEFAULT_VOICE_ID = 'fVVjLtJgnQI61CoImgHU';
 const DEFAULT_SPEECH_RATE = 0.8;
 const VOICE_STORAGE_KEY = 'therapy.selected_voice_id';
+const VOICE_DESCRIPTOR_STORAGE_KEY = 'therapy.selected_voice_descriptor';
 const CAPTIONS_STORAGE_KEY = 'therapy.captions_enabled';
 const SPEECH_RATE_STORAGE_KEY = 'therapy.speech_rate';
 
@@ -22,6 +23,9 @@ export default function App() {
   const [view, setView] = useState<View>('home');
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>(
     () => localStorage.getItem(VOICE_STORAGE_KEY) ?? DEFAULT_VOICE_ID
+  );
+  const [selectedVoiceDescriptor, setSelectedVoiceDescriptor] = useState<string>(
+    () => localStorage.getItem(VOICE_DESCRIPTOR_STORAGE_KEY) ?? ''
   );
   const [speechRate, setSpeechRate] = useState<number>(() => {
     const stored = localStorage.getItem(SPEECH_RATE_STORAGE_KEY);
@@ -53,11 +57,13 @@ export default function App() {
     setPendingVoiceInput('');
   }, []);
 
-  const handleApplyVoice = useCallback((nextVoiceId: string, nextSpeechRate: number) => {
+  const handleApplyVoice = useCallback((nextVoiceId: string, nextSpeechRate: number, nextDescriptor: string) => {
     setSelectedVoiceId(nextVoiceId);
     setSpeechRate(nextSpeechRate);
+    setSelectedVoiceDescriptor(nextDescriptor);
     localStorage.setItem(VOICE_STORAGE_KEY, nextVoiceId);
     localStorage.setItem(SPEECH_RATE_STORAGE_KEY, String(nextSpeechRate));
+    localStorage.setItem(VOICE_DESCRIPTOR_STORAGE_KEY, nextDescriptor);
     setView('home');
   }, []);
 
@@ -104,7 +110,7 @@ export default function App() {
               </svg>
             </button>
           </div>
-          <p className="voice-chip">Current voice ID: {selectedVoiceId} | Speed: {speechRate.toFixed(2)}x</p>
+          <p className="voice-chip">Current voice: {selectedVoiceDescriptor || 'Unknown voice'} | Speed: {speechRate.toFixed(2)}x</p>
         </section>
       )}
 

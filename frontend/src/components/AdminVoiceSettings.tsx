@@ -21,7 +21,7 @@ interface VoicesPayload {
 interface AdminVoiceSettingsProps {
   currentVoiceId: string;
   currentSpeechRate: number;
-  onApply: (voiceId: string, speechRate: number) => void;
+  onApply: (voiceId: string, speechRate: number, descriptor: string) => void;
 }
 
 type AbilityLevel = 'needs_support' | 'balanced' | 'independent';
@@ -193,7 +193,8 @@ export function AdminVoiceSettings({ currentVoiceId, currentSpeechRate, onApply 
             <button
               className="btn-primary"
               onClick={() =>
-                selectedEntry && onApply(selectedEntry.voice_id.trim(), selectedAbilityPreset.speechRate)
+                selectedEntry &&
+                onApply(selectedEntry.voice_id.trim(), selectedAbilityPreset.speechRate, selectedEntry.accent_description)
               }
               disabled={applyDisabled}
             >
