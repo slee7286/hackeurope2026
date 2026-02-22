@@ -20,7 +20,7 @@ export function Layout({
       <div className="app-container">
         <header className="app-header">
           <div className="app-brand">
-            <div className="brand-dot" aria-hidden="true" />
+            <img className="brand-logo" src="/logo.png" alt="Speech-Therapy.ai logo" />
             <div>
               <h1 className="brand-title">Speech-Therapy.ai</h1>
               <p className="brand-subtitle">Adaptive therapy, real progress</p>

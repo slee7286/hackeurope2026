@@ -136,12 +136,11 @@ textarea:disabled {
   gap: 12px;
 }
 
-.brand-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: linear-gradient(145deg, var(--color-primary), #85a9b6);
-  box-shadow: 0 0 0 8px rgba(93, 129, 143, 0.16);
+.brand-logo {
+  width: 62px;
+  height: 62px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .brand-title {
