@@ -391,8 +391,8 @@ textarea:disabled {
 
 .session-flow--practice .session-orb-container {
   position: absolute;
-  top: 0;
-  left: 8px;
+  top: -62px;
+  left: -28px;
   width: auto;
   min-height: 0;
   padding: 0;
@@ -423,8 +423,8 @@ textarea:disabled {
 }
 
 .session-flow--practice .speech-orb-caption {
-  top: 46%;
-  left: calc(100% + 16px);
+  top: 47%;
+  left: calc(100% + 8px);
   right: auto;
   width: min(44vw, 520px);
   max-width: min(44vw, 520px);
@@ -442,7 +442,7 @@ textarea:disabled {
 }
 
 .session-flow--practice .session-voice-output {
-  margin-top: 200px;
+  margin-top: 104px;
 }
 
 .speech-orb-stage {
@@ -1185,21 +1185,22 @@ textarea:disabled {
   }
 
   .session-flow--practice .session-orb-container {
-    top: 0;
-    left: 8px;
+    top: -34px;
+    left: -14px;
     min-height: 0;
     padding: 0;
   }
 
   .session-flow--practice .speech-orb-caption {
-    left: calc(100% + 10px);
+    top: 47%;
+    left: calc(100% + 6px);
     right: auto;
     width: min(56vw, 360px);
     max-width: min(56vw, 360px);
   }
 
   .session-flow--practice .session-voice-output {
-    margin-top: 140px;
+    margin-top: 66px;
   }
 }
 
