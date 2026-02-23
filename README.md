@@ -1,28 +1,56 @@
 ## Inspiration
 
-Having seen firsthand the challenges of stroke recovery, a member of our team knows all too well the shortcomings of today’s computer aided speech and language therapy. Existing apps have become a cornerstone of care, giving patients the independence to practise in their own time. However, they rarely adapt to what each person actually needs to say and understand day to day. With modern AI, therapy can be tailored to the individual, with exercises that reflect their lives in content and delivery in a familiar voice.
+Aphasia (pronounced Uh-FAY-zhuh) is a communication disorder caused by a stroke or brain injury [[1](https://aphasia.org/what-is-aphasia/)]. The lifetime risk of stroke has increased by 50% over the past 20 years, with 1 in 4 adults predicted to experience a stroke in their lifetime [[2](https://www.who.int/news-room/fact-sheets/detail/stroke)]. 38% of poeple who have a stroke get aphasia at the time of the stroke [[3](https://aphasia.org/statistics/)].
+
+Research has shown that those suffering from aphasia have particular difficulty understanding accents that are unfamiliar to them and it has been concluded that speaker accent should be accoutned for in the rehabilitation of individuals suffering from aphasia after a stroke [[4](https://pubmed.ncbi.nlm.nih.gov/22360727/)] [[5](https://pubmed.ncbi.nlm.nih.gov/20178407/)].
+
+Having seen firsthand the challenges of stroke recovery, a member of our team knows all too well the shortcomings of today’s computer aided speech and language therapy. Existing apps have become a cornerstone of care, giving patients the independence to practise in their own time. However, they often provide limited accent customisability and do not adjust to topics relevant to the individual's daily life. With modern AI, therapy can be tailored to the individual, with exercises that reflect their lives, delivered in a familiar voice.
+
+With this as motivation, we built Speech-Therapy.ai. An app that uses AI agents, voice recognition, voice generation and voice cloning capabilities to provide immersive and personalised speech and language therapy.
 
 ## What it does
 
-Speech-Therapy.ai uses agentic AI to create custom lessons for patients, and Elevenlabs' extensive library of regional accents and voice cloning capabilities to provide lessons in an accent the patient is familiar with. In turn, helping patients to recovery in their own time and to their fullest potential.
+An AI agent runs a check-in conversation from which it generates personalized speech and language exercises.
+It supports multimodal therapy tasks including picture-based exercises and voice interactions. All in an accent familiar to the user.
+
+[![DEMO](https://img.youtube.com/vi/NsYpCqlzSlw/0.jpg)](https://www.youtube.com/watch?v=NsYpCqlzSlw)
 
 ## How we built it
 
-We built Speech-Therapy.ai as a TypeScript React web app, using Claude’s agentic capabilities to generate and adapt therapy exercises based on conversations with the user. We integrated the ElevenLabs API for high quality text-to-speech so prompts can be delivered clearly, and in a consistent and natural voice, and we used the Unsplash API to pull relevant imagery to support naming and comprehension tasks. Together, these tools let us create a personalised, multimodal therapy experience that adapts in real time.
+We built Speech-Therapy.ai as a TypeScript + React web app with a TypeScript/Express backend.
+* Claude powers the check-in agent, plan generation, and semantic answer evaluation.
+* ElevenLabs provides an extensive library of high-quality text-to-speech voices and voice cloning capabilities.
+* Google Cloud Speech-to-Text API powers speech transcription of user responses.
+* Unsplash provides image options for picture-description tasks.
+* A therapy engine manages session flow, scoring, and feedback across question types.
+* Session summaries/history are stored in a lightweight local JSON store designed to easily be extended to use MongoDB in production.
+This architecture lets us deliver a personalized, voice-first, and visually supported therapy experience.
+
+## Technologies Used (Full Stack)
+
+* Languages: TypeScript, JavaScript
+* Frontend: React, Vite, Vitest, Testing Library
+* Backend: Node.js, Express
+* AI/LLM: Anthropic Claude (agent/check-in, plan generation, answer evaluation)
+* Voice: ElevenLabs Text-to-Speech API
+* Speech Recognition: Google Cloud Speech-to-Text REST API
+* Images: Unsplash API
+* Storage: In-memory session store + file-based JSON persistence for practice history
 
 ## Challenges we ran into
 
-Our biggest challenges throughout the project were difficulties that arose from four engineers working on a small codebase at the same time. We resolved (pardon the pun) these issues by clearly communicating what we were working on and coordinating with one another to organise branch merge order. In instances of conflicts we used coding agents to clean up the mess.
+The biggest challenge was parallel development by four engineers in a fast-moving codebase. We resolved (pardon the pun) this with tighter branch discipline, clearer ownership, and explicit merge sequencing. In instances of conflicts we used coding agents to clean up the mess.
 
-We took significant time to formulate prompts that evoked the desired behavior and tone from Claude agents.
+We also spent significant time iterating prompts to achieve the right therapeutic tone, structure, and tool-calling behavior from Claude.
 
 ## Accomplishments that we're proud of
 
-We are particularly proud of including voice cloning in the project, due to time constraints this at a time seemed in doubt. More generally, we are proud of a product that has the potential to assist people in reclaiming their lives after tragedy.
+We’re especially proud that we integrated voice cloning under tight hackathon timelines, allowing stroke patient family members to clone their voice so that stroke patients can go through the rehabilitation program by learning their loved ones’ voices.
+More broadly, we built an MVP with real potential to help stroke survivors practice communication in a way that feels personal, practical, and dignified.
 
 ## What we learned
 
-We were all astonished by how much we achieved in the time frame. We’ll take it as a lesson in what’s possible when we stay focused and work well in a team. From talking to the very impressive builders around us at this incredible event we have learnt that by believing in an idea and persevering with it you can take something from a sketch to an MVP, to eventually a business.
+We were all astonished by how much we achieved in the time frame. We’ll take it as a lesson in what’s possible when we stay focused and work well in a team. From talking to the very impressive builders and enthusiastic startup founders around us at this incredible event, we have learnt that by believing in an idea and persevering with it you can take something from a sketch to an MVP to eventually a business.
 
 ## What's next for Speech-Therapy.ai
 
